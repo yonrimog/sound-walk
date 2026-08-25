@@ -118,22 +118,15 @@ function unlockAudio(){
   }catch(e){}
 }
 function startAudio(){
-  // Browser-safe test tone. Later this is replaced by the real MP3/WAV.
-  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-  if(audioCtx.state==='suspended') audioCtx.resume();
-  if(oscillator) return;
-  oscillator=audioCtx.createOscillator();
-  const gain=audioCtx.createGain();
-  oscillator.frequency.value=392;
-  gain.gain.value=.0001;
-  oscillator.connect(gain).connect(audioCtx.destination);
-  oscillator.start();
-  gain.gain.exponentialRampToValueAtTime(.08,audioCtx.currentTime+.15);
-  setTimeout(()=>{
-    if(!oscillator)return;
-    gain.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.7);
-    setTimeout(()=>{try{oscillator.stop()}catch(e){} oscillator=null},750);
-  },1600);
+  if(!window.realAudio){
+    window.realAudio=new Audio('sound01.mp3');
+    window.realAudio.preload='auto';
+    window.realAudio.loop=false;
+    window.realAudio.volume=1;
+  }
+  window.realAudio.currentTime=0;
+  const promise=window.realAudio.play();
+  if(promise && promise.catch) promise.catch(()=>{});
 }
 function arrived(){
   target.style.display='grid';
