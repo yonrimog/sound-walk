@@ -50,7 +50,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:
 
   <div id="intro">
     <div>
-      <div class="small">GPS SOUND WALK TEST</div>
+      <div class="small">GPS SOUND WALK · AUDIO TEST</div>
       <h1>이제, 걸어보세요</h1>
       <p>위치 권한을 허용하면 내 위치를 확인합니다.</p>
       <button id="start">위치 사용 시작 →</button>
@@ -67,9 +67,9 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:
   <div id="panel">
     <button id="close">×</button>
     <div class="tag">01 · SOUND POINT</div>
-    <h2>첫 번째 장소</h2>
+    <h2>첫 번째 장소 · 실제 음원 테스트</h2>
     <p>GPS 테스트용 작품입니다. 실제 작품 설명과 음원으로 교체할 수 있습니다.</p>
-    <button id="listen">이곳의 소리 듣기　→</button>
+    <button id="listen">소리를 다시 듣기　→</button>
   </div>
 </div>
 
@@ -104,29 +104,35 @@ function center(x,y,targetScale){
 function setStatus(title,text){
   state.textContent=title;coords.textContent=text;status.classList.add('show');
 }
-function startAudio(){
-  // Browser-safe test tone. Later this is replaced by the real MP3/WAV.
+function unlockAudio(){
   if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
   if(audioCtx.state==='suspended') audioCtx.resume();
-  if(oscillator) return;
-  oscillator=audioCtx.createOscillator();
-  const gain=audioCtx.createGain();
-  oscillator.frequency.value=392;
-  gain.gain.value=.0001;
-  oscillator.connect(gain).connect(audioCtx.destination);
-  oscillator.start();
-  gain.gain.exponentialRampToValueAtTime(.08,audioCtx.currentTime+.15);
-  setTimeout(()=>{
-    if(!oscillator)return;
-    gain.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.7);
-    setTimeout(()=>{try{oscillator.stop()}catch(e){} oscillator=null},750);
-  },1600);
+  // Tiny silent buffer: unlocks audio output after the user's tap.
+  try{
+    const buffer=audioCtx.createBuffer(1,1,audioCtx.sampleRate);
+    const source=audioCtx.createBufferSource();
+    source.buffer=buffer;
+    source.connect(audioCtx.destination);
+    source.start();
+  }catch(e){}
+}
+let realAudio=null;
+function startAudio(){
+  if(!realAudio) {
+    realAudio=new Audio('sound01.mp3');
+    realAudio.preload='auto';
+    realAudio.loop=false;
+    realAudio.volume=1;
+  }
+  realAudio.currentTime=0;
+  const promise=realAudio.play();
+  if(promise && promise.catch) promise.catch(()=>{});
 }
 function arrived(){
   target.style.display='grid';
   center(.535,.665,Math.max(.48,fit()*5));
   panel.classList.add('open');
-  setStatus('01번 장소에 도착했습니다.','망월길202번길 12에서 30m 이내로 들어오면 테스트 소리가 시작됩니다.');
+  setStatus('01번 장소에 도착했습니다.','망월길202번길 12에서 30m 이내로 들어오면 추가로 누르지 않아도 소리가 시작됩니다.');
   startAudio();
 }
 function metersBetween(lat1,lon1,lat2,lon2){
@@ -164,7 +170,7 @@ photo.onload=()=>{
 };
 window.addEventListener('resize',()=>apply());
 
-start.onclick=startGPS;
+start.onclick=()=>{ unlockAudio(); startGPS(); };
 test.onclick=arrived;
 document.getElementById('close').onclick=()=>panel.classList.remove('open');
 document.getElementById('listen').onclick=startAudio;
