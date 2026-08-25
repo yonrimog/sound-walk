@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>SOUND WALK — GPS 테스트</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+#app{position:fixed;inset:0;overflow:hidden}
+#map{position:absolute;inset:0;overflow:hidden;touch-action:none;background:#111}
+#photo{position:absolute;left:0;top:0;max-width:none;transform-origin:0 0;will-change:transform;user-select:none;-webkit-user-drag:none}
+#shade{position:absolute;inset:0;background:rgba(0,0,0,.08);pointer-events:none}
+#brand{position:absolute;z-index:10;left:18px;top:calc(env(safe-area-inset-top) + 18px);pointer-events:none}
+#brand b{font-size:14px;letter-spacing:.18em}
+#brand div{margin-top:8px;font-size:12px;opacity:.82}
+#haenggung{position:absolute;z-index:3;left:50%;top:53%;transform:translate(-50%,-50%) rotate(-8deg);font-size:clamp(70px,25vw,150px);font-weight:700;letter-spacing:-.08em;color:rgba(255,255,255,.11);pointer-events:none;white-space:nowrap}
+#intro{position:absolute;z-index:20;inset:0;display:grid;place-items:center;text-align:center;background:rgba(0,0,0,.08);transition:opacity .5s}
+#intro.hide{opacity:0;pointer-events:none}
+#intro .small{font-size:10px;letter-spacing:.2em;opacity:.72}
+#intro h1{font-size:29px;font-weight:600;letter-spacing:-.04em;margin:10px 0}
+#intro p{font-size:11px;opacity:.72;margin:0 0 22px}
+#start{border:1px solid rgba(255,255,255,.7);background:rgba(0,0,0,.25);color:#fff;border-radius:999px;padding:13px 19px;font-size:12px}
+#status{position:absolute;z-index:30;left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom) + 14px);padding:13px 14px;border-radius:16px;background:rgba(10,10,10,.78);backdrop-filter:blur(16px);font-size:11px;line-height:1.5;transform:translateY(150%);transition:transform .4s}
+#status.show{transform:translateY(0)}
+#dot{position:absolute;z-index:15;width:18px;height:18px;margin:-9px;border-radius:50%;background:#fff;box-shadow:0 0 0 6px rgba(255,255,255,.18);display:none}
+#target{position:absolute;z-index:12;width:34px;height:34px;margin:-17px;border:1px solid #fff;border-radius:50%;display:none;place-items:center;background:rgba(0,0,0,.3);font-size:9px}
+#panel{position:absolute;z-index:40;left:12px;right:12px;bottom:12px;padding:18px;border-radius:20px;background:rgba(15,15,15,.86);backdrop-filter:blur(20px);transform:translateY(130%);transition:transform .45s}
+#panel.open{transform:translateY(0)}
+#panel .tag{font-size:10px;letter-spacing:.15em;opacity:.55}
+#panel h2{margin:7px 0 6px;font-size:21px;font-weight:550}
+#panel p{margin:0 0 15px;font-size:12px;line-height:1.55;opacity:.75}
+#listen{width:100%;border:0;border-top:1px solid rgba(255,255,255,.35);background:none;color:#fff;padding:14px 0 3px;text-align:left;font-size:13px}
+#close{position:absolute;right:12px;top:12px;width:30px;height:30px;border:0;border-radius:50%;background:rgba(255,255,255,.1);color:#fff;font-size:20px}
+#test{position:absolute;z-index:31;right:14px;top:calc(env(safe-area-inset-top) + 16px);display:none;border:1px solid rgba(255,255,255,.5);background:rgba(0,0,0,.3);color:#fff;border-radius:999px;padding:8px 11px;font-size:10px}
+#test.show{display:block}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map">
+    <img id="photo" src="map.jpg" alt="">
+    <div id="shade"></div>
+    <div id="haenggung">행궁동</div>
+    <div id="dot"></div>
+    <div id="target">01</div>
+  </div>
+
+  <div id="brand"><b>SOUND WALK</b><div>시간이 쌓이는 그곳</div></div>
+
+  <div id="intro">
+    <div>
+      <div class="small">GPS SOUND WALK TEST</div>
+      <h1>이제, 걸어보세요</h1>
+      <p>위치 권한을 허용하면 내 위치를 확인합니다.</p>
+      <button id="start">위치 사용 시작 →</button>
+    </div>
+  </div>
+
+  <button id="test">가상으로 도착하기</button>
+
+  <div id="status">
+    <b id="state">GPS 대기 중</b><br>
+    <span id="coords">위치를 기다리고 있습니다.</span>
+  </div>
+
+  <div id="panel">
+    <button id="close">×</button>
+    <div class="tag">01 · SOUND POINT</div>
+    <h2>첫 번째 장소</h2>
+    <p>GPS 테스트용 작품입니다. 실제 작품 설명과 음원으로 교체할 수 있습니다.</p>
+    <button id="listen">이곳의 소리 듣기　→</button>
+  </div>
+</div>
+
+<script>
+const photo=document.getElementById('photo'), map=document.getElementById('map');
+const intro=document.getElementById('intro'), start=document.getElementById('start');
+const status=document.getElementById('status'), state=document.getElementById('state'), coords=document.getElementById('coords');
+const dot=document.getElementById('dot'), target=document.getElementById('target'), test=document.getElementById('test'), panel=document.getElementById('panel');
+
+let scale=1,tx=0,ty=0;
+let audioCtx=null, oscillator=null, watchId=null;
+
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function fit(){return Math.min(map.clientWidth/photo.naturalWidth,map.clientHeight/photo.naturalHeight)}
+function apply(anim=false){
+  photo.style.transition=anim?'transform 900ms cubic-bezier(.16,.8,.16,1)':'none';
+  photo.style.transform=`translate3d(${tx}px,${ty}px,0) scale(${scale})`;
+  positionTarget();
+}
+function positionTarget(){
+  // Prototype target position in the source image.
+  const x=.535, y=.665;
+  const r=photo.getBoundingClientRect(), mr=map.getBoundingClientRect();
+  target.style.left=(r.left-mr.left+x*r.width)+'px';
+  target.style.top=(r.top-mr.top+y*r.height)+'px';
+}
+function center(x,y,targetScale){
+  const mw=map.clientWidth,mh=map.clientHeight,sw=photo.naturalWidth*targetScale,sh=photo.naturalHeight*targetScale;
+  scale=targetScale;tx=mw/2-x*sw;ty=mh/2-y*sh;
+  tx=clamp(tx,mw-sw,0);ty=clamp(ty,mh-sh,0);apply(true);
+}
+function setStatus(title,text){
+  state.textContent=title;coords.textContent=text;status.classList.add('show');
+}
+function startAudio(){
+  // Browser-safe test tone. Later this is replaced by the real MP3/WAV.
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  if(oscillator) return;
+  oscillator=audioCtx.createOscillator();
+  const gain=audioCtx.createGain();
+  oscillator.frequency.value=392;
+  gain.gain.value=.0001;
+  oscillator.connect(gain).connect(audioCtx.destination);
+  oscillator.start();
+  gain.gain.exponentialRampToValueAtTime(.08,audioCtx.currentTime+.15);
+  setTimeout(()=>{
+    if(!oscillator)return;
+    gain.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.7);
+    setTimeout(()=>{try{oscillator.stop()}catch(e){} oscillator=null},750);
+  },1600);
+}
+function arrived(){
+  target.style.display='grid';
+  center(.535,.665,Math.max(.48,fit()*5));
+  panel.classList.add('open');
+  setStatus('01번 장소에 도착했습니다.','망월길202번길 12에서 30m 이내로 들어오면 테스트 소리가 시작됩니다.');
+  startAudio();
+}
+function metersBetween(lat1,lon1,lat2,lon2){
+  const R=6371000, toRad=x=>x*Math.PI/180;
+  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+  const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+function startGPS(){
+  intro.classList.add('hide');
+  test.classList.add('show');
+  if(!navigator.geolocation){
+    setStatus('이 브라우저는 GPS를 지원하지 않습니다.','Safari 또는 Chrome 최신 버전을 사용해 주세요.');
+    return;
+  }
+  setStatus('GPS 권한 요청 중…','위치 권한을 허용해 주세요.');
+  watchId=navigator.geolocation.watchPosition(pos=>{
+    const lat=pos.coords.latitude, lon=pos.coords.longitude, acc=Math.round(pos.coords.accuracy);
+    setStatus('GPS 연결됨',`위도 ${lat.toFixed(6)} · 경도 ${lon.toFixed(6)} · 정확도 약 ${acc}m`);
+    // Test target: 망월길202번길 12
+    // 37.748881513354, 126.36420024262
+    const TARGET_LAT=37.748881513354, TARGET_LON=126.36420024262;
+    const distance=metersBetween(lat,lon,TARGET_LAT,TARGET_LON);
+    if(distance <= 30 && !window._arrived){ window._arrived=true; arrived(); }
+    coords.textContent=`위도 ${lat.toFixed(6)} · 경도 ${lon.toFixed(6)} · 정확도 약 ${acc}m · 목표지점까지 약 ${Math.round(distance)}m`;
+    // We intentionally do not guess the target's lat/lon here.
+  },err=>{
+    const msg={1:'위치 권한이 거부되었습니다.',2:'현재 위치를 확인할 수 없습니다.',3:'GPS 요청 시간이 초과되었습니다.'}[err.code]||'GPS 오류가 발생했습니다.';
+    setStatus('GPS를 사용할 수 없습니다.',msg);
+  },{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
+}
+photo.onload=()=>{
+  const s=fit();scale=s;tx=(map.clientWidth-photo.naturalWidth*s)/2;ty=(map.clientHeight-photo.naturalHeight*s)/2;apply();
+  positionTarget();
+};
+window.addEventListener('resize',()=>apply());
+
+start.onclick=startGPS;
+test.onclick=arrived;
+document.getElementById('close').onclick=()=>panel.classList.remove('open');
+document.getElementById('listen').onclick=startAudio;
+
+// Touch drag for map exploration.
+let drag=false,sx=0,sy=0,stx=0,sty=0;
+map.addEventListener('pointerdown',e=>{
+  if(e.target.closest('#panel')||e.target===test)return;
+  drag=true;sx=e.clientX;sy=e.clientY;stx=tx;sty=ty;map.setPointerCapture(e.pointerId);photo.style.transition='none';
+});
+map.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  tx=stx+e.clientX-sx;ty=sty+e.clientY-sy;
+  const sw=photo.naturalWidth*scale,sh=photo.naturalHeight*scale;
+  tx=clamp(tx,map.clientWidth-sw,0);ty=clamp(ty,map.clientHeight-sh,0);apply();
+});
+map.addEventListener('pointerup',()=>drag=false);
+map.addEventListener('pointercancel',()=>drag=false);
+</script>
+</body>
+</html>
