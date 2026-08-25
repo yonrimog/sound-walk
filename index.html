@@ -50,14 +50,14 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:
 
   <div id="intro">
     <div>
-      <div class="small">GPS SOUND WALK · AUDIO TEST</div>
+      <div class="small">GPS SOUND WALK TEST</div>
       <h1>이제, 걸어보세요</h1>
       <p>위치 권한을 허용하면 내 위치를 확인합니다.</p>
       <button id="start">위치 사용 시작 →</button>
     </div>
   </div>
 
-  <button id="test">가상으로 도착하기</button>
+  
 
   <div id="status">
     <b id="state">GPS 대기 중</b><br>
@@ -67,7 +67,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:
   <div id="panel">
     <button id="close">×</button>
     <div class="tag">01 · SOUND POINT</div>
-    <h2>첫 번째 장소 · 실제 음원 테스트</h2>
+    <h2>첫 번째 장소</h2>
     <p>GPS 테스트용 작품입니다. 실제 작품 설명과 음원으로 교체할 수 있습니다.</p>
     <button id="listen">소리를 다시 듣기　→</button>
   </div>
@@ -81,6 +81,7 @@ const dot=document.getElementById('dot'), target=document.getElementById('target
 
 let scale=1,tx=0,ty=0;
 let audioCtx=null, oscillator=null, watchId=null;
+let insideCount=0, triggered=false;
 
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function fit(){return Math.min(map.clientWidth/photo.naturalWidth,map.clientHeight/photo.naturalHeight)}
@@ -116,23 +117,29 @@ function unlockAudio(){
     source.start();
   }catch(e){}
 }
-let realAudio=null;
 function startAudio(){
-  if(!realAudio) {
-    realAudio=new Audio('sound01.mp3');
-    realAudio.preload='auto';
-    realAudio.loop=false;
-    realAudio.volume=1;
-  }
-  realAudio.currentTime=0;
-  const promise=realAudio.play();
-  if(promise && promise.catch) promise.catch(()=>{});
+  // Browser-safe test tone. Later this is replaced by the real MP3/WAV.
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  if(oscillator) return;
+  oscillator=audioCtx.createOscillator();
+  const gain=audioCtx.createGain();
+  oscillator.frequency.value=392;
+  gain.gain.value=.0001;
+  oscillator.connect(gain).connect(audioCtx.destination);
+  oscillator.start();
+  gain.gain.exponentialRampToValueAtTime(.08,audioCtx.currentTime+.15);
+  setTimeout(()=>{
+    if(!oscillator)return;
+    gain.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.7);
+    setTimeout(()=>{try{oscillator.stop()}catch(e){} oscillator=null},750);
+  },1600);
 }
 function arrived(){
   target.style.display='grid';
   center(.535,.665,Math.max(.48,fit()*5));
   panel.classList.add('open');
-  setStatus('01번 장소에 도착했습니다.','망월길202번길 12에서 30m 이내로 들어오면 추가로 누르지 않아도 소리가 시작됩니다.');
+  setStatus('01번 장소에 도착했습니다.','망월길202번길 12에서 15m 이내에 들어오면 두 번 연속 확인 후 소리가 시작됩니다. 25m 밖으로 나가면 페이드아웃합니다.');
   startAudio();
 }
 function metersBetween(lat1,lon1,lat2,lon2){
@@ -143,7 +150,7 @@ function metersBetween(lat1,lon1,lat2,lon2){
 }
 function startGPS(){
   intro.classList.add('hide');
-  test.classList.add('show');
+  
   if(!navigator.geolocation){
     setStatus('이 브라우저는 GPS를 지원하지 않습니다.','Safari 또는 Chrome 최신 버전을 사용해 주세요.');
     return;
@@ -156,7 +163,32 @@ function startGPS(){
     // 37.748881513354, 126.36420024262
     const TARGET_LAT=37.748881513354, TARGET_LON=126.36420024262;
     const distance=metersBetween(lat,lon,TARGET_LAT,TARGET_LON);
-    if(distance <= 30 && !window._arrived){ window._arrived=true; arrived(); }
+    // Test rule: enter within 15m for 2 consecutive GPS readings.
+    // Leave only after moving beyond 25m, which prevents rapid on/off at the boundary.
+    if(distance <= 15){
+      insideCount++;
+      if(insideCount >= 2 && !triggered){
+        triggered=true;
+        arrived();
+      }
+    } else if(distance > 25){
+      insideCount=0;
+      if(triggered && window.realAudio){
+        try{
+          const fade=window.realAudio;
+          const startVol=fade.volume;
+          const steps=10;
+          let i=0;
+          const timer=setInterval(()=>{
+            i++;
+            fade.volume=Math.max(0,startVol*(1-i/steps));
+            if(i>=steps){clearInterval(timer); fade.pause(); fade.currentTime=0; fade.volume=1;}
+          },80);
+        }catch(e){}
+        triggered=false;
+        panel.classList.remove('open');
+      }
+    }
     coords.textContent=`위도 ${lat.toFixed(6)} · 경도 ${lon.toFixed(6)} · 정확도 약 ${acc}m · 목표지점까지 약 ${Math.round(distance)}m`;
     // We intentionally do not guess the target's lat/lon here.
   },err=>{
@@ -171,7 +203,7 @@ photo.onload=()=>{
 window.addEventListener('resize',()=>apply());
 
 start.onclick=()=>{ unlockAudio(); startGPS(); };
-test.onclick=arrived;
+
 document.getElementById('close').onclick=()=>panel.classList.remove('open');
 document.getElementById('listen').onclick=startAudio;
 
