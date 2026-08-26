@@ -14,7 +14,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-se
 
 .map{
  position:absolute;inset:0;
- background:url("map.jpg") center/cover no-repeat;
+ background:url("map.jpg") center 64%/cover no-repeat;
  transition:transform 5.5s cubic-bezier(.16,.72,.16,1);
 }
 .map:after{content:"";position:absolute;inset:0;background:rgba(0,0,0,.045)}
@@ -24,17 +24,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-se
  top:calc(env(safe-area-inset-top) + 25px);left:28px;
  text-shadow:0 1px 7px rgba(0,0,0,.2)
 }
-.brand-title{font-size:25px;letter-spacing:.17em;font-weight:500}
-.brand-sub{margin-top:8px;font-size:15px;letter-spacing:.06em}
+.brand-title{font-size:30px;letter-spacing:.17em;font-weight:500}
+.brand-sub{margin-top:10px;font-size:18px;letter-spacing:.06em}
+.brand{animation:brandFloat 7s ease-in-out infinite}
+@keyframes brandFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 
 .haenggung{
  position:absolute;z-index:3;left:50%;top:48%;
  transform:translate(-50%,-50%);
  white-space:nowrap;pointer-events:none;
  font-family:"Do Hyeon",Impact,"Arial Narrow",sans-serif;
- font-size:clamp(90px,17vw,235px);
+ font-size:clamp(150px,31vw,420px);
  font-weight:400;letter-spacing:.025em;
- color:rgba(255,255,255,.19);
+ color:rgba(255,255,255,.24);
  text-shadow:0 0 1px rgba(0,0,0,.12);
 }
 
@@ -66,6 +68,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-se
 .cta:active{transform:translateX(-50%) scale(.97)}
 .arrow{display:block;margin-top:7px;font-size:23px;line-height:1}
 
+@media(max-width:420px){.brand-title{font-size:28px}.brand-sub{font-size:17px}.haenggung{font-size:31vw}}
 @media(min-width:700px){
  .brand{left:42px}
  .cta{bottom:52px}
