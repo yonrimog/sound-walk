@@ -2,218 +2,137 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>SOUND WALK — GPS 테스트</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>SOUND WALK · 두 구역 테스트</title>
 <style>
-*{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
-#app{position:fixed;inset:0;overflow:hidden}
-#map{position:absolute;inset:0;overflow:hidden;touch-action:none;background:#111}
-#photo{position:absolute;left:0;top:0;max-width:none;transform-origin:0 0;will-change:transform;user-select:none;-webkit-user-drag:none}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#111;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+#map{position:fixed;inset:0;overflow:hidden;background:#111}
+#photo{position:absolute;left:0;top:0;max-width:none;transform-origin:0 0;user-select:none;-webkit-user-drag:none}
 #shade{position:absolute;inset:0;background:rgba(0,0,0,.08);pointer-events:none}
 #brand{position:absolute;z-index:10;left:18px;top:calc(env(safe-area-inset-top) + 18px);pointer-events:none}
-#brand b{font-size:14px;letter-spacing:.18em}
-#brand div{margin-top:8px;font-size:12px;opacity:.82}
-#haenggung{position:absolute;z-index:3;left:50%;top:53%;transform:translate(-50%,-50%) rotate(-8deg);font-size:clamp(70px,25vw,150px);font-weight:700;letter-spacing:-.08em;color:rgba(255,255,255,.11);pointer-events:none;white-space:nowrap}
-#intro{position:absolute;z-index:20;inset:0;display:grid;place-items:center;text-align:center;background:rgba(0,0,0,.08);transition:opacity .5s}
+#brand b{font-size:14px;letter-spacing:.18em}#brand div{margin-top:8px;font-size:12px;opacity:.82}
+#intro{position:absolute;z-index:30;inset:0;display:grid;place-items:center;text-align:center;background:rgba(0,0,0,.16);transition:opacity .5s}
 #intro.hide{opacity:0;pointer-events:none}
 #intro .small{font-size:10px;letter-spacing:.2em;opacity:.72}
 #intro h1{font-size:29px;font-weight:600;letter-spacing:-.04em;margin:10px 0}
 #intro p{font-size:11px;opacity:.72;margin:0 0 22px}
 #start{border:1px solid rgba(255,255,255,.7);background:rgba(0,0,0,.25);color:#fff;border-radius:999px;padding:13px 19px;font-size:12px}
-#status{position:absolute;z-index:30;left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom) + 14px);padding:13px 14px;border-radius:16px;background:rgba(10,10,10,.78);backdrop-filter:blur(16px);font-size:11px;line-height:1.5;transform:translateY(150%);transition:transform .4s}
+#status{position:absolute;z-index:20;left:14px;right:14px;bottom:calc(env(safe-area-inset-bottom) + 14px);padding:13px 14px;border-radius:16px;background:rgba(10,10,10,.80);backdrop-filter:blur(16px);font-size:11px;line-height:1.5;transform:translateY(150%);transition:transform .4s}
 #status.show{transform:translateY(0)}
 #dot{position:absolute;z-index:15;width:18px;height:18px;margin:-9px;border-radius:50%;background:#fff;box-shadow:0 0 0 6px rgba(255,255,255,.18);display:none}
-#target{position:absolute;z-index:12;width:34px;height:34px;margin:-17px;border:1px solid #fff;border-radius:50%;display:none;place-items:center;background:rgba(0,0,0,.3);font-size:9px}
-#panel{position:absolute;z-index:40;left:12px;right:12px;bottom:12px;padding:18px;border-radius:20px;background:rgba(15,15,15,.86);backdrop-filter:blur(20px);transform:translateY(130%);transition:transform .45s}
+.zone{position:absolute;z-index:12;border:1px solid rgba(255,255,255,.75);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:10px;background:rgba(255,255,255,.08);pointer-events:none}
+#zoneA{width:70px;height:70px;margin:-35px}#zoneB{width:70px;height:70px;margin:-35px}
+#panel{position:absolute;z-index:25;left:12px;right:12px;bottom:12px;padding:18px;border-radius:20px;background:rgba(15,15,15,.88);backdrop-filter:blur(20px);transform:translateY(130%);transition:transform .4s}
 #panel.open{transform:translateY(0)}
 #panel .tag{font-size:10px;letter-spacing:.15em;opacity:.55}
-#panel h2{margin:7px 0 6px;font-size:21px;font-weight:550}
-#panel p{margin:0 0 15px;font-size:12px;line-height:1.55;opacity:.75}
-#listen{width:100%;border:0;border-top:1px solid rgba(255,255,255,.35);background:none;color:#fff;padding:14px 0 3px;text-align:left;font-size:13px}
-#close{position:absolute;right:12px;top:12px;width:30px;height:30px;border:0;border-radius:50%;background:rgba(255,255,255,.1);color:#fff;font-size:20px}
-#test{position:absolute;z-index:31;right:14px;top:calc(env(safe-area-inset-top) + 16px);display:none;border:1px solid rgba(255,255,255,.5);background:rgba(0,0,0,.3);color:#fff;border-radius:999px;padding:8px 11px;font-size:10px}
-#test.show{display:block}
+#panel h2{margin:7px 0 5px;font-size:21px;font-weight:550}
+#panel p{margin:0;font-size:12px;opacity:.75}
 </style>
 </head>
 <body>
-<div id="app">
-  <div id="map">
-    <img id="photo" src="map.jpg" alt="">
-    <div id="shade"></div>
-    <div id="haenggung">행궁동</div>
-    <div id="dot"></div>
-    <div id="target">01</div>
-  </div>
+<div id="map">
+<img id="photo" src="map.jpg" alt="">
+<div id="shade"></div>
+<div id="brand"><b>SOUND WALK</b><div>두 구역 자동 전환 테스트</div></div>
+<div id="dot"></div>
+<div id="zoneA" class="zone">01</div>
+<div id="zoneB" class="zone">02</div>
+</div>
 
-  <div id="brand"><b>SOUND WALK</b><div>시간이 쌓이는 그곳</div></div>
-
-  <div id="intro">
-    <div>
-      <div class="small">GPS SOUND WALK TEST</div>
-      <h1>이제, 걸어보세요</h1>
-      <p>위치 권한을 허용하면 내 위치를 확인합니다.</p>
-      <button id="start">위치 사용 시작 →</button>
-    </div>
-  </div>
-
-  
-
-  <div id="status">
-    <b id="state">GPS 대기 중</b><br>
-    <span id="coords">위치를 기다리고 있습니다.</span>
-  </div>
-
-  <div id="panel">
-    <button id="close">×</button>
-    <div class="tag">01 · SOUND POINT</div>
-    <h2>첫 번째 장소</h2>
-    <p>GPS 테스트용 작품입니다. 실제 작품 설명과 음원으로 교체할 수 있습니다.</p>
-    <button id="listen">소리를 다시 듣기　→</button>
+<div id="intro">
+  <div>
+    <div class="small">GPS SOUND WALK · 2 ZONES</div>
+    <h1>이제, 걸어보세요</h1>
+    <p>한 번 누르면 GPS가 시작됩니다.</p>
+    <button id="start">위치 사용 시작 →</button>
   </div>
 </div>
+
+<div id="status"><b id="state">GPS 대기 중</b><br><span id="coords">위치를 기다리고 있습니다.</span></div>
+
+<div id="panel"><div class="tag" id="tag">SOUND POINT</div><h2 id="title">-</h2><p id="desc">-</p></div>
 
 <script>
 const photo=document.getElementById('photo'), map=document.getElementById('map');
 const intro=document.getElementById('intro'), start=document.getElementById('start');
 const status=document.getElementById('status'), state=document.getElementById('state'), coords=document.getElementById('coords');
-const dot=document.getElementById('dot'), target=document.getElementById('target'), test=document.getElementById('test'), panel=document.getElementById('panel');
+const dot=document.getElementById('dot'), zoneAEl=document.getElementById('zoneA'), zoneBEl=document.getElementById('zoneB');
+const panel=document.getElementById('panel'), tag=document.getElementById('tag'), title=document.getElementById('title'), desc=document.getElementById('desc');
 
-let scale=1,tx=0,ty=0;
-let audioCtx=null, oscillator=null, watchId=null;
-let insideCount=0, triggered=false;
+const zones=[
+ {id:'A',name:'첫 번째 장소',file:'sound01.mp3',lat:37.748881513354,lon:126.36420024262,radius:15},
+ // Test zone B: about 60m north of zone A. This is intentionally a test coordinate.
+ {id:'B',name:'두 번째 장소',file:'sound02.mp3',lat:37.749420000000,lon:126.36420024262,radius:15}
+];
+let watchId=null, currentZone=null, insideCounts={A:0,B:0};
+let audio=null, started=false;
 
-function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
-function fit(){return Math.min(map.clientWidth/photo.naturalWidth,map.clientHeight/photo.naturalHeight)}
-function apply(anim=false){
-  photo.style.transition=anim?'transform 900ms cubic-bezier(.16,.8,.16,1)':'none';
-  photo.style.transform=`translate3d(${tx}px,${ty}px,0) scale(${scale})`;
-  positionTarget();
-}
-function positionTarget(){
-  // Prototype target position in the source image.
-  const x=.535, y=.665;
-  const r=photo.getBoundingClientRect(), mr=map.getBoundingClientRect();
-  target.style.left=(r.left-mr.left+x*r.width)+'px';
-  target.style.top=(r.top-mr.top+y*r.height)+'px';
-}
-function center(x,y,targetScale){
-  const mw=map.clientWidth,mh=map.clientHeight,sw=photo.naturalWidth*targetScale,sh=photo.naturalHeight*targetScale;
-  scale=targetScale;tx=mw/2-x*sw;ty=mh/2-y*sh;
-  tx=clamp(tx,mw-sw,0);ty=clamp(ty,mh-sh,0);apply(true);
-}
-function setStatus(title,text){
-  state.textContent=title;coords.textContent=text;status.classList.add('show');
-}
-function unlockAudio(){
-  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-  if(audioCtx.state==='suspended') audioCtx.resume();
-  // Tiny silent buffer: unlocks audio output after the user's tap.
-  try{
-    const buffer=audioCtx.createBuffer(1,1,audioCtx.sampleRate);
-    const source=audioCtx.createBufferSource();
-    source.buffer=buffer;
-    source.connect(audioCtx.destination);
-    source.start();
-  }catch(e){}
-}
-function startAudio(){
-  if(!window.realAudio){
-    window.realAudio=new Audio('sound01.mp3');
-    window.realAudio.preload='auto';
-    window.realAudio.loop=false;
-    window.realAudio.volume=1;
-  }
-  window.realAudio.currentTime=0;
-  const promise=window.realAudio.play();
-  if(promise && promise.catch) promise.catch(()=>{});
-}
-function arrived(){
-  target.style.display='grid';
-  center(.535,.665,Math.max(.48,fit()*5));
-  panel.classList.add('open');
-  setStatus('01번 장소에 도착했습니다.','망월길202번길 12에서 15m 이내에 들어오면 두 번 연속 확인 후 소리가 시작됩니다. 25m 밖으로 나가면 페이드아웃합니다.');
-  startAudio();
-}
+function setStatus(a,b){state.textContent=a;coords.textContent=b;status.classList.add('show')}
 function metersBetween(lat1,lon1,lat2,lon2){
-  const R=6371000, toRad=x=>x*Math.PI/180;
-  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
-  const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-  return 2*R*Math.asin(Math.sqrt(a));
+ const R=6371000,rad=x=>x*Math.PI/180,dLat=rad(lat2-lat1),dLon=rad(lon2-lon1);
+ const a=Math.sin(dLat/2)**2+Math.cos(rad(lat1))*Math.cos(rad(lat2))*Math.sin(dLon/2)**2;
+ return 2*R*Math.asin(Math.sqrt(a));
+}
+function showZone(z){
+ currentZone=z.id;
+ tag.textContent=z.id==='A'?'01 · SOUND POINT':'02 · SOUND POINT';
+ title.textContent=z.name;
+ desc.textContent=z.id==='A'?'「떠나자」':'「우리는 어디에서 만나나요」';
+ panel.classList.add('open');
+}
+async function switchAudio(z){
+ // Intentionally start from 0 only when entering a zone.
+ if(audio){
+   try{
+     const old=audio; const startVol=old.volume; let i=0;
+     const timer=setInterval(()=>{i++;old.volume=Math.max(0,startVol*(1-i/8));if(i>=8){clearInterval(timer);old.pause();old.currentTime=0;old.volume=1;}},70);
+   }catch(e){}
+ }
+ const next=new Audio(z.file); next.preload='auto'; next.volume=1; audio=next;
+ try{
+   await next.play();
+   setStatus(z.name+' · 재생 중','음원: '+z.file+' · GPS 영역 반경 '+z.radius+'m');
+ }catch(e){
+   setStatus(z.name+' · 소리 재생이 차단됨','GPS 영역 진입은 감지했습니다. 브라우저의 자동재생 정책 테스트가 필요합니다.');
+ }
+}
+function positionZones(){
+ const r=photo.getBoundingClientRect(),mr=map.getBoundingClientRect();
+ const points=[['zoneA',.535,.665],['zoneB',.535,.635]];
+ for(const [id,x,y] of points){
+   const el=document.getElementById(id);
+   el.style.left=(r.left-mr.left+x*r.width)+'px';
+   el.style.top=(r.top-mr.top+y*r.height)+'px';
+ }
+}
+function fit(){
+ const s=Math.min(map.clientWidth/photo.naturalWidth,map.clientHeight/photo.naturalHeight);
+ const sw=photo.naturalWidth*s,sh=photo.naturalHeight*s;
+ photo.style.transform=`translate3d(${(map.clientWidth-sw)/2}px,${(map.clientHeight-sh)/2}px,0) scale(${s})`;
+ positionZones();
 }
 function startGPS(){
-  intro.classList.add('hide');
-  
-  if(!navigator.geolocation){
-    setStatus('이 브라우저는 GPS를 지원하지 않습니다.','Safari 또는 Chrome 최신 버전을 사용해 주세요.');
-    return;
-  }
-  setStatus('GPS 권한 요청 중…','위치 권한을 허용해 주세요.');
-  watchId=navigator.geolocation.watchPosition(pos=>{
-    const lat=pos.coords.latitude, lon=pos.coords.longitude, acc=Math.round(pos.coords.accuracy);
-    setStatus('GPS 연결됨',`위도 ${lat.toFixed(6)} · 경도 ${lon.toFixed(6)} · 정확도 약 ${acc}m`);
-    // Test target: 망월길202번길 12
-    // 37.748881513354, 126.36420024262
-    const TARGET_LAT=37.748881513354, TARGET_LON=126.36420024262;
-    const distance=metersBetween(lat,lon,TARGET_LAT,TARGET_LON);
-    // Test rule: enter within 15m for 2 consecutive GPS readings.
-    // Leave only after moving beyond 25m, which prevents rapid on/off at the boundary.
-    if(distance <= 15){
-      insideCount++;
-      if(insideCount >= 2 && !triggered){
-        triggered=true;
-        arrived();
-      }
-    } else if(distance > 25){
-      insideCount=0;
-      if(triggered && window.realAudio){
-        try{
-          const fade=window.realAudio;
-          const startVol=fade.volume;
-          const steps=10;
-          let i=0;
-          const timer=setInterval(()=>{
-            i++;
-            fade.volume=Math.max(0,startVol*(1-i/steps));
-            if(i>=steps){clearInterval(timer); fade.pause(); fade.currentTime=0; fade.volume=1;}
-          },80);
-        }catch(e){}
-        triggered=false;
-        panel.classList.remove('open');
-      }
-    }
-    coords.textContent=`위도 ${lat.toFixed(6)} · 경도 ${lon.toFixed(6)} · 정확도 약 ${acc}m · 목표지점까지 약 ${Math.round(distance)}m`;
-    // We intentionally do not guess the target's lat/lon here.
-  },err=>{
-    const msg={1:'위치 권한이 거부되었습니다.',2:'현재 위치를 확인할 수 없습니다.',3:'GPS 요청 시간이 초과되었습니다.'}[err.code]||'GPS 오류가 발생했습니다.';
-    setStatus('GPS를 사용할 수 없습니다.',msg);
-  },{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
+ intro.classList.add('hide');
+ zoneAEl.style.display='flex';zoneBEl.style.display='flex';dot.style.display='block';
+ if(!navigator.geolocation){setStatus('GPS를 지원하지 않습니다','Safari 또는 Chrome 최신 버전을 사용해 주세요.');return}
+ setStatus('GPS 연결 중…','현재 위치를 기다리고 있습니다.');
+ watchId=navigator.geolocation.watchPosition(pos=>{
+   const lat=pos.coords.latitude,lon=pos.coords.longitude,acc=Math.round(pos.coords.accuracy);
+   let best=null,bestD=Infinity;
+   for(const z of zones){
+     const d=metersBetween(lat,lon,z.lat,z.lon);
+     if(d<bestD){bestD=d;best=z}
+     if(d<=z.radius) insideCounts[z.id]++; else insideCounts[z.id]=0;
+   }
+   setStatus('GPS 연결됨',`목표 ${best.id}까지 약 ${Math.round(bestD)}m · 정확도 약 ${acc}m`);
+   if(best && insideCounts[best.id]>=2 && currentZone!==best.id) switchAudio(best),showZone(best);
+ },err=>{
+   const m={1:'위치 권한이 거부되었습니다.',2:'현재 위치를 확인할 수 없습니다.',3:'GPS 요청 시간이 초과되었습니다.'}[err.code]||'GPS 오류';
+   setStatus('GPS 오류',m);
+ },{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
 }
-photo.onload=()=>{
-  const s=fit();scale=s;tx=(map.clientWidth-photo.naturalWidth*s)/2;ty=(map.clientHeight-photo.naturalHeight*s)/2;apply();
-  positionTarget();
-};
-window.addEventListener('resize',()=>apply());
-
-start.onclick=()=>{ unlockAudio(); startGPS(); };
-
-document.getElementById('close').onclick=()=>panel.classList.remove('open');
-document.getElementById('listen').onclick=startAudio;
-
-// Touch drag for map exploration.
-let drag=false,sx=0,sy=0,stx=0,sty=0;
-map.addEventListener('pointerdown',e=>{
-  if(e.target.closest('#panel')||e.target===test)return;
-  drag=true;sx=e.clientX;sy=e.clientY;stx=tx;sty=ty;map.setPointerCapture(e.pointerId);photo.style.transition='none';
-});
-map.addEventListener('pointermove',e=>{
-  if(!drag)return;
-  tx=stx+e.clientX-sx;ty=sty+e.clientY-sy;
-  const sw=photo.naturalWidth*scale,sh=photo.naturalHeight*scale;
-  tx=clamp(tx,map.clientWidth-sw,0);ty=clamp(ty,map.clientHeight-sh,0);apply();
-});
-map.addEventListener('pointerup',()=>drag=false);
-map.addEventListener('pointercancel',()=>drag=false);
+photo.onload=fit;window.addEventListener('resize',fit);
+start.addEventListener('click',()=>{started=true;startGPS()});
 </script>
 </body>
 </html>
