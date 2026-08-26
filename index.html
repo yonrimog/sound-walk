@@ -16,7 +16,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-se
  background-repeat:no-repeat;
  background-size:auto 151.1%;
  background-position:60.2% 70.0%;
- transition:background-size 5.8s cubic-bezier(.16,.72,.16,1), background-position 5.8s cubic-bezier(.16,.72,.16,1);
+ transform:scale(1);
+ transform-origin:50% 50%;
+ transition:transform 5.8s cubic-bezier(.16,.72,.16,1);
+ will-change:transform;
 }
 .map:after{
  content:"";position:absolute;inset:0;
@@ -140,7 +143,7 @@ function walkDots(){
 walkDots();
 
 cta.addEventListener('click',()=>{
- map.style.backgroundSize='auto 395.0%';
+ map.style.transform='scale(2.61)';
  cta.style.opacity='0';
  setTimeout(()=>cta.remove(),900);
 });
