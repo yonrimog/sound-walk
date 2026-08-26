@@ -12,7 +12,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-se
 
 .map{
  position:absolute;inset:0;
- background:url("map.jpg") center center/cover no-repeat;
+ background:url("map.jpg") 43% 62% / cover no-repeat;
  transition:transform 5.8s cubic-bezier(.16,.72,.16,1);
 }
 .map:after{
@@ -28,14 +28,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-se
  animation:floatTitle 5.5s ease-in-out infinite;
 }
 .brand-title{
- font-size:29px;
+ font-size:38px;
  line-height:1;
  font-weight:500;
  letter-spacing:.17em;
 }
 .brand-sub{
  margin-top:10px;
- font-size:17px;
+ font-size:22px;
  letter-spacing:.06em;
 }
 @keyframes floatTitle{
@@ -50,9 +50,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-se
  white-space:nowrap;pointer-events:none;
  font-family:"Do Hyeon",Impact,"Arial Narrow",sans-serif;
  font-size:clamp(120px,27vw,360px);
- font-weight:400;
+ font-weight:700;
  letter-spacing:.02em;
- color:rgba(255,255,255,.17);
+ color:rgba(255,255,255,.22);
 }
 
 .dots{position:absolute;inset:0;z-index:6;pointer-events:none}
@@ -78,7 +78,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-se
  border:1px solid rgba(255,255,255,.86);
  background:rgba(0,0,0,.10);
  color:#fff;
- font-size:17px;line-height:1.45;letter-spacing:.03em;
+ font-size:22px;line-height:1.45;letter-spacing:.03em;
  backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);
  cursor:pointer;
  transition:opacity .8s,transform .2s;
@@ -137,7 +137,7 @@ function walkDots(){
 walkDots();
 
 cta.addEventListener('click',()=>{
- map.style.transform='scale(1.78)';
+ map.style.transformOrigin='43% 62%'; map.style.transform='scale(1.52)';
  cta.style.opacity='0';
  setTimeout(()=>cta.remove(),900);
 });
