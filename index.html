@@ -14,7 +14,7 @@
 <div id="map"><img id="mapimg" src="map.png" alt="망월길 202번길 주변 지도"><div id="route"></div></div>
 <div id="top"><div class="title"><b>SOUND WALK</b><span>망월리 GPS 테스트</span></div></div>
 <div id="info"><div id="state">대기 중</div><div id="coords" class="muted">위치 사용을 시작하면 현재 위치가 지도 위에 표시됩니다.</div><div id="audioState" class="muted">음원 준비 중…</div></div>
-<div id="intro"><div class="card"><div class="muted">GPS SOUND WALK</div><h1>이제, 걸어보세요</h1><p>버튼을 한 번 누르면 지도 위에 현재 위치가 나타납니다.<br>집 → 삼거리로 걸어가면 두 번째 음원으로 바뀝니다.</p><button id="start">위치 사용 시작 →</button></div></div>
+<div id="intro"><div class="card"><div class="muted">GPS SOUND WALK</div><h1>이제, 걸어보세요</h1><p>버튼을 한 번 누르면 지도 위에 현재 위치가 나타납니다.<br>집 → 삼거리로 걸어가면 두 번째 음원으로 바뀝니다.</p><button id="start">위치 사용 시작 →</button><div id="loading" class="muted" style="margin-top:10px;display:none">음원을 준비하고 있습니다…</div></div></div>
 <div id="toast"></div>
 <script>
 const HOME={lat:37+44/60+56/3600,lon:126+21/60+52/3600};
@@ -41,16 +41,35 @@ function setMe(lat,lon){const p=mapPoint(lat,lon),q=pxToPct(p);me.style.left=q.l
 function dist(a,b){return Math.hypot(...Object.values(metersXY(a,b)))}
 function showToast(t){toast.textContent=t;toast.style.display='block';setTimeout(()=>toast.style.display='none',1800)}
 async function prepareAudio(){
- try{ctx=new (window.AudioContext||window.webkitAudioContext)(); await ctx.resume(); gain=ctx.createGain();gain.gain.value=1;gain.connect(ctx.destination);
-  for(const n of ['sound01.mp3','sound02.mp3']){const r=await fetch(n);const ab=await r.arrayBuffer();buffers[n]=await ctx.decodeAudioData(ab)}
-  ready=true;audioState.textContent='음원 2개 준비 완료 · 구역 진입 시에만 재생';
- }catch(e){audioState.textContent='음원 준비 실패 · GPS 테스트는 계속할 수 있습니다.';}
+ try{
+  ctx=new (window.AudioContext||window.webkitAudioContext)();
+  await ctx.resume();
+  // iPhone에서 '사용자 터치로 오디오가 시작된 상태'를 확보하기 위한 무음 해제 신호
+  const unlockGain=ctx.createGain(); unlockGain.gain.value=0; unlockGain.connect(ctx.destination);
+  const osc=ctx.createOscillator(); osc.connect(unlockGain); osc.start(); osc.stop(ctx.currentTime+0.05);
+  gain=ctx.createGain(); gain.gain.value=1; gain.connect(ctx.destination);
+  for(const n of ['sound01.mp3','sound02.mp3']){
+    const r=await fetch(n,{cache:'no-store'});
+    if(!r.ok) throw new Error(n+' load '+r.status);
+    const ab=await r.arrayBuffer(); buffers[n]=await ctx.decodeAudioData(ab);
+  }
+  if(ctx.state==='suspended') await ctx.resume();
+  ready=true;
+  audioState.textContent='음원 2개 준비 완료 · 이제 걸으면 구역에서 자동 재생';
+  return true;
+ }catch(e){
+  console.error(e); audioState.textContent='음원 준비 실패: '+(e.message||e); return false;
+ }
 }
+
 function playBuffer(name){if(!ready)return false;if(source){try{source.stop()}catch(e){}} source=ctx.createBufferSource();source.buffer=buffers[name];source.connect(gain);source.start(0);return true}
 function enterZone(id){if(currentZone===id)return;currentZone=id;const ok=playBuffer(id==='A'?'sound01.mp3':'sound02.mp3');showToast(id==='A'?'첫 번째 장소 · 「떠나자」':'두 번째 장소 · 「우리는 어디에서 만나나요」');audioState.textContent=ok?(id==='A'?'▶ 「떠나자」 재생 중':'▶ 「우리는 어디에서 만나나요」 재생 중'):'GPS는 감지했지만 음원 재생이 차단되었습니다.'}
-function startGPS(){
- intro.classList.add('hide');start.disabled=true;state.textContent='GPS 연결 중…';
- prepareAudio();
+async function startGPS(){
+ intro.classList.add('hide');start.disabled=true;state.textContent='음원 준비 중…';
+ const loading=document.getElementById('loading'); loading.style.display='block';
+ const audioOK=await prepareAudio();
+ loading.style.display='none';
+ state.textContent=audioOK?'GPS 연결 중…':'GPS 연결 중… (음원 준비 실패)';
  if(!navigator.geolocation){state.textContent='이 브라우저에서는 GPS를 사용할 수 없습니다.';return}
  watchId=navigator.geolocation.watchPosition(pos=>{
   const lat=pos.coords.latitude,lon=pos.coords.longitude,acc=Math.round(pos.coords.accuracy||0); lastPos={lat,lon}; setMe(lat,lon);
