@@ -3,185 +3,181 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<title>망월리 GPS 구역 테스트</title>
+<title>망월리 GPS 다각형 테스트</title>
 <style>
 *{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f7f7f7;color:#222;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#eee;color:#222;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
 #app{position:fixed;inset:0;overflow:hidden}
-#map{position:absolute;inset:0;overflow:hidden;background:#f7f7f7}
-#photo{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;object-position:center;user-select:none;-webkit-user-drag:none}
-#veil{position:absolute;inset:0;background:rgba(255,255,255,.08);pointer-events:none}
-#title{position:absolute;z-index:20;left:16px;top:calc(env(safe-area-inset-top) + 14px);padding:10px 13px;border-radius:14px;background:rgba(20,20,20,.82);color:#fff}
+#map{position:absolute;inset:0}
+svg{width:100%;height:100%;display:block}
+.zone{fill:rgba(20,140,220,.18);stroke:rgba(20,120,210,.95);stroke-width:4;vector-effect:non-scaling-stroke}
+.zone.active{fill:rgba(30,180,90,.25);stroke:rgba(20,145,75,1)}
+.label{font-size:24px;font-weight:700;fill:#222;paint-order:stroke;stroke:#fff;stroke-width:7px;stroke-linejoin:round}
+#title{position:absolute;z-index:20;left:14px;top:calc(env(safe-area-inset-top) + 12px);padding:10px 13px;border-radius:14px;background:rgba(20,20,20,.86);color:#fff}
 #title b{font-size:14px;letter-spacing:.08em}
-#title div{font-size:11px;margin-top:5px;opacity:.78}
-.zone{position:absolute;z-index:12;width:78px;height:78px;margin:-39px;border:3px solid rgba(20,120,210,.95);border-radius:50%;background:rgba(40,150,220,.13);display:grid;place-items:center;text-align:center}
-.zone span{display:block;font-size:13px;font-weight:700;background:rgba(255,255,255,.92);padding:4px 7px;border-radius:999px}
-.zone small{display:block;font-size:9px;margin-top:3px;background:rgba(255,255,255,.9);padding:2px 5px;border-radius:999px}
-#z1{left:52%;top:67.5%}
-#z2{left:40.8%;top:79.1%}
-#z3{left:87.4%;top:80.5%}
-#z4{left:67.9%;top:31.5%}
-#startMark{position:absolute;z-index:13;left:51.2%;top:49.2%;width:24px;height:24px;margin:-12px;border-radius:50%;background:#e85c45;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25)}
-#startLabel{position:absolute;z-index:13;left:51.2%;top:49.2%;transform:translate(14px,-9px);background:rgba(255,255,255,.94);padding:5px 8px;border-radius:9px;font-size:10px;font-weight:600;white-space:nowrap}
-#legend{position:absolute;z-index:25;left:12px;right:12px;top:calc(env(safe-area-inset-top) + 86px);padding:10px 12px;border-radius:15px;background:rgba(255,255,255,.93);backdrop-filter:blur(10px);font-size:11px;line-height:1.55}
-#legend b{font-size:12px}
-#start{position:absolute;z-index:30;left:50%;bottom:calc(env(safe-area-inset-bottom) + 18px);transform:translateX(-50%);border:0;border-radius:999px;background:#222;color:#fff;padding:14px 20px;font-size:13px;box-shadow:0 5px 18px rgba(0,0,0,.2)}
-#status{position:absolute;z-index:35;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 78px);padding:12px 14px;border-radius:15px;background:rgba(20,20,20,.88);color:#fff;font-size:11px;line-height:1.55;transform:translateY(150%);transition:.3s}
-#status.show{transform:translateY(0)}
-#state{font-weight:700}
-#hit{position:absolute;z-index:40;left:50%;top:50%;transform:translate(-50%,-50%);display:none;padding:18px 22px;border-radius:18px;background:rgba(20,20,20,.92);color:#fff;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.3)}
-#hit b{font-size:18px}
-#hit div{font-size:11px;margin-top:6px;opacity:.75}
+#title div{font-size:11px;margin-top:4px;opacity:.8}
+#panel{position:absolute;z-index:30;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 14px);padding:13px 14px;border-radius:17px;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);box-shadow:0 6px 25px rgba(0,0,0,.15)}
+#state{font-weight:700;font-size:14px}
+#detail{font-size:11px;line-height:1.5;margin-top:4px;color:#555}
+button{margin-top:9px;border:0;border-radius:999px;background:#222;color:#fff;padding:11px 17px;font-size:12px}
+#now{position:absolute;z-index:25;display:none;width:18px;height:18px;margin:-9px;border-radius:50%;background:#ff3b30;border:3px solid white;box-shadow:0 1px 8px rgba(0,0,0,.35)}
+#hint{font-size:10px;color:#777;margin-top:5px}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="map">
-    <img id="photo" src="map.png" alt="">
-    <div id="veil"></div>
+    <svg viewBox="0 0 1160 1016" preserveAspectRatio="xMidYMid slice" aria-label="망월리 GPS 테스트 지도">
+      <image href="map.png" x="0" y="0" width="1160" height="1016" preserveAspectRatio="none"></image>
 
-    <div id="startMark"></div>
-    <div id="startLabel">출발 · 망월리 1253</div>
+      <!-- 사용자가 표시한 도로 구역을 다각형으로 테스트 -->
+      <polygon id="p1" class="zone" points="650,550 795,545 890,470 915,485 820,575 665,585"></polygon>
+      <polygon id="p2" class="zone" points="850,205 875,195 935,445 900,470 860,315"></polygon>
+      <polygon id="p3" class="zone" points="975,350 1155,275 1158,330 1000,420 970,400"></polygon>
 
-    <div class="zone" id="z1"><div><span>① 음악 1</span><small>망월길202번길 18</small></div></div>
-    <div class="zone" id="z2"><div><span>② 음악 2</span><small>망월길202번길 21-3</small></div></div>
-    <div class="zone" id="z3"><div><span>③ 음악 3</span><small>망월길202번길 11-7</small></div></div>
-    <div class="zone" id="z4"><div><span>④ 음악 4</span><small>망월길202번길 8-3</small></div></div>
+      <text class="label" x="760" y="535">①</text>
+      <text class="label" x="880" y="350">②</text>
+      <text class="label" x="1060" y="350">③</text>
+      <text class="label" x="565" y="485">출발</text>
+    </svg>
   </div>
 
-  <div id="title"><b>GPS SOUND WALK TEST</b><div>망월리 · 구역 테스트</div></div>
+  <div id="now"></div>
 
-  <div id="legend">
-    <b>걸어볼 순서</b><br>
-    출발  →  ① 음악 1  →  ② 음악 2  →  ③ 음악 3  →  ④ 음악 4<br>
-    <span style="opacity:.68">각 구역은 약 14m 반경입니다. 같은 휴대폰 GPS로 구역 진입과 음악 전환을 테스트합니다.</span>
-  </div>
+  <div id="title"><b>GPS SOUND WALK TEST</b><div>망월리 · 다각형 구역 테스트</div></div>
 
-  <div id="status">
+  <div id="panel">
     <div id="state">GPS 대기 중</div>
-    <div id="coords">아래 버튼을 눌러 위치 사용을 시작하세요.</div>
+    <div id="detail">버튼을 눌러 위치 사용을 시작하세요.</div>
+    <button id="start">GPS 테스트 시작 →</button>
+    <div id="hint">한 번 시작한 음악은 구역 밖으로 나가도 파일이 끝날 때까지 계속 재생됩니다. 다른 구역에 들어가면 그 음악으로 즉시 전환됩니다.</div>
   </div>
-
-  <button id="start">GPS 테스트 시작 →</button>
-  <div id="hit"><b id="hitTitle"></b><div id="hitSub"></div></div>
 </div>
 
 <script>
 const zones = [
-  {id:1,name:'음악 1',lat:37.748536510224,lon:126.3641535177,radius:14,notes:[392,494,587,494]},
-  {id:2,name:'음악 2',lat:37.748321919452,lon:126.36386856924,radius:14,notes:[330,415,523,415]},
-  {id:3,name:'음악 3',lat:37.748265357219,lon:126.36509585962,radius:14,notes:[294,370,440,370]},
-  {id:4,name:'음악 4',lat:37.749200782221,lon:126.36465164542,radius:14,notes:[440,554,659,554]}
+  {
+    id:1, name:'음악 1', file:'sound01.wav',
+    polygon:[
+      [37.748781100,126.364283800],
+      [37.748771327,126.364591536],
+      [37.748893192,126.364817435],
+      [37.748863140,126.364865123],
+      [37.748714449,126.364634147],
+      [37.748716572,126.364303612]
+    ]
+  },
+  {
+    id:2, name:'음악 2', file:'sound02.wav',
+    polygon:[
+      [37.749372270,126.364822713],
+      [37.749386927,126.364878864],
+      [37.748932093,126.364920877],
+      [37.748891901,126.364838541],
+      [37.749174260,126.364806584]
+    ]
+  },
+  {
+    id:3, name:'음악 3', file:'sound03.wav',
+    polygon:[
+      [37.749096824,126.365037460],
+      [37.749207718,126.365442764],
+      [37.749108971,126.365430479],
+      [37.748968412,126.365066531],
+      [37.749008051,126.365009982]
+    ]
+  }
 ];
 
 const startPoint={lat:37.748881513354,lon:126.36420024262};
-let watchId=null, audioCtx=null, activeZone=null, entered={};
-let audioTimer=null;
+const audio={};
+let watchId=null, currentZone=null, currentAudio=null;
 
-const status=document.getElementById('status');
-const state=document.getElementById('state');
-const coords=document.getElementById('coords');
-const hit=document.getElementById('hit');
-const hitTitle=document.getElementById('hitTitle');
-const hitSub=document.getElementById('hitSub');
+for(const z of zones){
+  const a=new Audio(z.file);
+  a.preload='auto';
+  audio[z.id]=a;
+}
 
-function setStatus(a,b){
-  state.textContent=a;
-  coords.textContent=b;
-  status.classList.add('show');
-}
-function metersBetween(a,b,c,d){
-  const R=6371000, p=Math.PI/180;
-  const dLat=(c-a)*p, dLon=(d-b)*p;
-  const x=Math.sin(dLat/2)**2 + Math.cos(a*p)*Math.cos(c*p)*Math.sin(dLon/2)**2;
-  return 2*R*Math.asin(Math.sqrt(x));
-}
-function unlockAudio(){
-  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-  if(audioCtx.state==='suspended') audioCtx.resume();
-  const buffer=audioCtx.createBuffer(1,1,audioCtx.sampleRate);
-  const src=audioCtx.createBufferSource();
-  src.buffer=buffer; src.connect(audioCtx.destination); src.start();
-}
-function stopMusic(){
-  if(audioTimer){clearTimeout(audioTimer);audioTimer=null}
-}
-function playZoneMusic(zone){
-  stopMusic();
-  if(!audioCtx) unlockAudio();
-  const notes=zone.notes;
-  let i=0;
-  function phrase(){
-    if(activeZone!==zone.id)return;
-    const now=audioCtx.currentTime;
-    notes.forEach((f,k)=>{
-      const osc=audioCtx.createOscillator();
-      const gain=audioCtx.createGain();
-      osc.type='sine';
-      osc.frequency.value=f;
-      gain.gain.setValueAtTime(0.0001,now+k*0.34);
-      gain.gain.exponentialRampToValueAtTime(0.055,now+k*0.34+0.03);
-      gain.gain.exponentialRampToValueAtTime(0.0001,now+k*0.34+0.30);
-      osc.connect(gain).connect(audioCtx.destination);
-      osc.start(now+k*0.34);
-      osc.stop(now+k*0.34+0.32);
-    });
-    audioTimer=setTimeout(phrase,1450);
+function pointInPolygon(lat,lon,poly){
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const yi=poly[i][0], xi=poly[i][1];
+    const yj=poly[j][0], xj=poly[j][1];
+    const intersect=((yi>lat)!=(yj>lat)) &&
+      (lon < (xj-xi)*(lat-yi)/(yj-yi)+xi);
+    if(intersect) inside=!inside;
   }
-  phrase();
+  return inside;
 }
-function showHit(zone){
-  hitTitle.textContent=`${zone.id}번 구역 · ${zone.name}`;
-  hitSub.textContent='구역 안으로 들어왔습니다. 음악이 바뀌었습니다.';
-  hit.style.display='block';
-  setTimeout(()=>hit.style.display='none',1800);
+
+function stopCurrent(){
+  // IMPORTANT: do NOT stop when merely leaving a zone.
+  // This function is only called when another zone is entered.
+  if(currentAudio){
+    currentAudio.pause();
+    currentAudio.currentTime=0;
+  }
 }
+
+function enterZone(z){
+  if(currentZone===z.id) return;
+  stopCurrent();
+  currentZone=z.id;
+  currentAudio=audio[z.id];
+  currentAudio.currentTime=0;
+  currentAudio.play().catch(()=>{});
+  document.querySelectorAll('.zone').forEach(el=>el.classList.remove('active'));
+  document.getElementById('p'+z.id).classList.add('active');
+  document.getElementById('state').textContent=`${z.id}번 구역 · ${z.name} 재생`;
+}
+
 function handlePosition(pos){
-  const lat=pos.coords.latitude,lon=pos.coords.longitude;
+  const lat=pos.coords.latitude, lon=pos.coords.longitude;
   const acc=Math.round(pos.coords.accuracy);
-  const dStart=Math.round(metersBetween(lat,lon,startPoint.lat,startPoint.lon));
+  const found=zones.find(z=>pointInPolygon(lat,lon,z.polygon));
 
-  let found=null,best=Infinity;
-  for(const z of zones){
-    const d=metersBetween(lat,lon,z.lat,z.lon);
-    if(d<=z.radius && d<best){found=z;best=d}
-  }
+  // Show current GPS point on the same map coordinate system.
+  // The map is a static test image; this transform is calibrated to the known points used for the test.
+  const x = 468367.34000421*lon - 88653.80776047*lat - 55837680.29190375;
+  const y = -33803.66866685*lon - 552773.08548279*lat + 25138636.58296865;
+  const now=document.getElementById('now');
+  now.style.display='block';
+  now.style.left=(x/1160*100)+'%';
+  now.style.top=(y/1016*100)+'%';
 
   if(found){
-    if(activeZone!==found.id){
-      activeZone=found.id;
-      entered[found.id]=(entered[found.id]||0)+1;
-      playZoneMusic(found);
-      showHit(found);
-    }
-    setStatus(`${found.id}번 구역 · ${found.name}`,`현재 GPS 정확도 약 ${acc}m · 구역 중심까지 약 ${Math.round(best)}m · 출발점까지 약 ${dStart}m`);
+    enterZone(found);
+    document.getElementById('detail').textContent=
+      `현재 위치 · 위도 ${lat.toFixed(6)} / 경도 ${lon.toFixed(6)} · GPS 정확도 약 ${acc}m`;
   }else{
-    if(activeZone!==null){
-      activeZone=null;
-      stopMusic();
-    }
-    let nearest=zones.map(z=>({z,d:metersBetween(lat,lon,z.lat,z.lon)})).sort((a,b)=>a.d-b.d)[0];
-    setStatus('GPS 연결됨',`위도 ${lat.toFixed(6)} · 경도 ${lon.toFixed(6)} · 정확도 약 ${acc}m · 가장 가까운 구역 ${nearest.z.id}번까지 약 ${Math.round(nearest.d)}m`);
+    // Leaving a zone does NOT stop the current file.
+    const playing=currentZone ? `음악 ${currentZone} 재생 중` : '대기 중';
+    document.getElementById('state').textContent=playing;
+    document.getElementById('detail').textContent=
+      `현재 위치 · 위도 ${lat.toFixed(6)} / 경도 ${lon.toFixed(6)} · GPS 정확도 약 ${acc}m`;
   }
 }
-function startGPS(){
-  unlockAudio();
-  document.getElementById('start').style.display='none';
+
+document.getElementById('start').onclick=()=>{
   if(!navigator.geolocation){
-    setStatus('GPS를 사용할 수 없습니다.','이 브라우저는 위치 정보를 지원하지 않습니다.');
+    document.getElementById('state').textContent='이 브라우저에서는 GPS를 사용할 수 없습니다.';
     return;
   }
-  setStatus('GPS 권한 요청 중…','위치 권한을 허용해 주세요.');
+  // Unlock audio on the user gesture.
+  Object.values(audio).forEach(a=>{a.load();});
+  document.getElementById('start').style.display='none';
+  document.getElementById('state').textContent='GPS 권한 요청 중…';
   watchId=navigator.geolocation.watchPosition(handlePosition,err=>{
-    const m={1:'위치 권한이 거부되었습니다.',2:'현재 위치를 확인할 수 없습니다.',3:'GPS 요청 시간이 초과되었습니다.'};
-    setStatus('GPS 오류',m[err.code]||'알 수 없는 GPS 오류입니다.');
+    document.getElementById('state').textContent='GPS 오류';
+    document.getElementById('detail').textContent=
+      err.code===1 ? '위치 권한을 허용해 주세요.' : '현재 위치를 확인할 수 없습니다.';
   },{
     enableHighAccuracy:true,
     maximumAge:2000,
     timeout:15000
   });
-}
-document.getElementById('start').onclick=startGPS;
+};
 </script>
 </body>
 </html>
