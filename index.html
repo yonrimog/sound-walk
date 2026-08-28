@@ -97,12 +97,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-se
  .cta{bottom:52px}
 }
 
-.info-nav{position:absolute;z-index:10;left:28px;top:calc(env(safe-area-inset-top) + 112px);display:flex;gap:18px;align-items:center;font-size:15px;letter-spacing:-.02em;text-shadow:0 1px 6px rgba(0,0,0,.25)}
+.info-nav{position:absolute;z-index:10;left:28px;top:calc(env(safe-area-inset-top) + 175px);display:flex;gap:20px;align-items:center;font-size:18px;letter-spacing:-.02em;text-shadow:0 1px 6px rgba(0,0,0,.25)}
 .info-nav button{appearance:none;border:0;background:none;color:#fff;padding:5px 0;font:inherit;cursor:pointer}
 .info-panel{position:absolute;z-index:20;inset:0;background:rgba(0,0,0,.72);color:#fff;padding:calc(env(safe-area-inset-top) + 76px) 28px calc(env(safe-area-inset-bottom) + 32px);opacity:0;pointer-events:none;transition:opacity .35s ease;overflow:auto}
 .info-panel.open{opacity:1;pointer-events:auto}.info-panel-inner{max-width:560px;margin:0 auto}.info-panel h2{font-size:25px;margin:0 0 22px;font-weight:500}.info-panel p{font-size:16px;line-height:1.8;margin:0 0 28px}.info-panel .credit{font-size:17px;line-height:2}
 .info-close{position:absolute;right:24px;top:calc(env(safe-area-inset-top) + 22px);color:#fff;background:none;border:0;font-size:25px;cursor:pointer}
-.mini-map{width:100%;aspect-ratio:4/3;margin:8px 0 28px;background:url("guide-map.jpg") center/cover no-repeat;border:1px solid rgba(255,255,255,.45)}
+.mini-map{width:100%;aspect-ratio:3/4;margin:8px 0 28px;background:url("guide-map.jpg") center/cover no-repeat;border:1px solid rgba(255,255,255,.45)}
 </style>
 </head>
 <body>
@@ -112,7 +112,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-se
 <button type="button" data-panel="mapinfo">지도</button>
 <button type="button" data-panel="credits">만든 사람들</button>
 </div>
-<div class="info-panel" id="how" aria-hidden="true"><button class="info-close" type="button">×</button><div class="info-panel-inner"><h2>사용방법</h2><p>이어폰을 준비해주세요.<br>「이제, 걸어보세요」를 누르고 위치 사용을 허용해주세요.<br>지도를 따라 걸으면 장소에 가까워질 때 소리가 시작됩니다.<br>다른 구역으로 이동하면 새로운 소리가 이어집니다.</p></div></div>
+<div class="info-panel" id="how" aria-hidden="true"><button class="info-close" type="button">×</button><div class="info-panel-inner"><h2>사용방법</h2><p>이어폰을 준비해주세요.<br>「이제, 걸어보세요」를 누르고 위치 사용을 허용해주세요.<br>✓ 천천히 걸으며 주변의 다양한 소리에 귀 기울여 보세요.<br>✓ 시장과 골목의 작은 소리도 하나의 추억이 됩니다.</p></div></div>
 <div class="info-panel" id="mapinfo" aria-hidden="true"><button class="info-close" type="button">×</button><div class="info-panel-inner"><h2>지도</h2><div class="mini-map"></div><p>지도를 따라 천천히 걸어보세요.<br>각 장소에서 새로운 소리를 만날 수 있습니다.</p></div></div>
 <div class="info-panel" id="credits" aria-hidden="true"><button class="info-close" type="button">×</button><div class="info-panel-inner"><h2>만든 사람들</h2><div class="credit">황혜신<br>신혜원<br>연리목<br>마린보이<br>수원문화재단</div></div></div>
 
