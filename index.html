@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시간이 쌓이는 그 곳 · GPS 음원 테스트</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Noto Sans KR",sans-serif;color:#222;background:#f6f4ef}
+*{box-sizing:border-box}body{margin:0;padding:20px}main{max-width:760px;margin:auto}.eyebrow{font-size:12px;letter-spacing:.12em;color:#777}.title{font-size:28px;font-weight:800;margin:5px 0 4px}.sub{color:#666;font-size:14px;margin:0 0 18px}.panel{background:white;border:1px solid #ddd8cf;border-radius:16px;padding:16px;margin:12px 0;box-shadow:0 4px 18px #00000008}.buttons{display:flex;flex-wrap:wrap;gap:8px}.btn{border:1px solid #bbb5ab;background:#fff;border-radius:999px;padding:11px 15px;font-size:14px;cursor:pointer}.btn.primary{background:#222;color:white;border-color:#222}.btn:disabled{opacity:.45;cursor:default}.status{font-size:18px;font-weight:700;margin:8px 0}.small{font-size:13px;color:#777;line-height:1.6}.coords{font-variant-numeric:tabular-nums;word-break:break-word}.now{background:#f0eee8;border-radius:12px;padding:12px;margin-top:10px}.places{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px}.place{border:1px solid #e1ddd5;border-radius:12px;padding:12px;background:#fff}.place.active{border:2px solid #222;background:#f7f5ef}.place h3{font-size:15px;margin:0 0 5px}.place p{margin:0;font-size:12px;color:#777}.place button{margin-top:9px;width:100%;padding:8px;border:1px solid #ccc;border-radius:8px;background:#fafafa}.log{max-height:180px;overflow:auto;font-size:12px;line-height:1.7;background:#faf9f6;padding:10px;border-radius:10px;white-space:pre-wrap}.audio-stack{position:relative}.audio-layer{width:100%}.audio-layer:not([controls]){display:none}.warning{color:#9a5b00;background:#fff5df;border-radius:10px;padding:10px;font-size:13px;line-height:1.5}
+</style>
+</head>
+<body>
+<main>
+<div class="eyebrow">SOUND WALK · GPS TEST</div>
+<div class="title">시간이 쌓이는 그 곳</div>
+<p class="sub">장소에 도착하면 해당 음원이 시작되고, 장소를 벗어나도 끝까지 재생됩니다.</p>
+<section class="panel">
+  <div class="buttons"><button class="btn primary" id="start">1번부터 GPS 테스트 시작</button><button class="btn" id="stop" disabled>GPS 중지</button><button class="btn" id="mute">음소거</button></div>
+  <div class="status" id="status">대기 중</div>
+  <div class="small" id="gps">아직 위치를 받지 않았습니다.</div>
+  <div class="now"><b>현재 재생</b><div id="current">없음</div><div class="small" id="audioState">음원 대기 중</div><div class="audio-stack"><audio id="playerA" class="audio-layer" controls preload="metadata"></audio><audio id="playerB" class="audio-layer" preload="metadata"></audio></div></div>
+</section>
+<section class="panel">
+  <b>장소별 테스트</b>
+  <p class="small">1번에 도착하면 1번 음원이 시작되고, 이후에는 각 장소에 도착할 때마다 다음 음원으로 자동 전환됩니다. 아래에는 좌표만 표시합니다.</p>
+  <div class="places" id="places"></div>
+</section>
+<section class="panel">
+  <b>테스트 로그</b>
+  <div class="log" id="log">준비되었습니다.</div>
+</section>
+<section class="panel warning">주의: 휴대폰에서 GPS를 사용하려면 보통 HTTPS 주소가 필요합니다. 파일을 직접 여는 방식(file://)에서는 위치 권한이 작동하지 않을 수 있습니다. 먼저 장소 버튼으로 음원 전환을 테스트한 뒤, 웹에 올려 GPS를 테스트해 주세요.</section>
+</main>
+<script>
+const places=[
+{id:1,name:'수원문화재단',lat:37.281002,lon:127.015111,file:'audio/01.mp3',label:'1. 수원문화재단'},
+{id:2,name:'시립미술관',lat:37.282596867687154,lon:127.01539785685706,file:'audio/02.m4a',label:'2. 시립미술관'},
+{id:3,name:'수원종로교회',lat:37.28202903910461,lon:127.0166804164195,file:'audio/03.mp3',label:'3. 수원종로교회'},
+{id:4,name:'종로재래시장',lat:37.282357931937725,lon:127.01658464032786,file:'audio/04.mp3',label:'4. 종로재래시장'},
+{id:5,name:'수원천로',lat:37.2823780495485,lon:127.01766153310521,file:'audio/05.mp3',label:'5. 수원천로'},
+{id:6,name:'통닭거리',lat:37.279607247483376,lon:127.01835435380387,file:'audio/06.m4a',label:'6. 통닭거리'},
+{id:7,name:'행궁로',lat:37.280152854102184,lon:127.01496041451266,file:'audio/07.m4a',label:'7. 행궁로'},
+{id:8,name:'행궁광장',lat:37.2818125,lon:127.0156875,file:'audio/08.m4a',label:'8. 행궁광장'}
+];
+const radius=45;
+let watchId=null,currentId=null,muted=false,activeAudio=null,transitionToken=0;
+const FADE_MS=1600;
+const $=id=>document.getElementById(id);
+const log=t=>{$('log').textContent=new Date().toLocaleTimeString('ko-KR')+'  '+t+'\n'+$('log').textContent};
+function render(){ $('places').innerHTML=places.map(p=>`<div class="place" id="place-${p.id}"><h3>${p.label}</h3><p class="coords">위도 ${p.lat}<br>경도 ${p.lon}</p></div>`).join(''); }
+function dist(a,b){const R=6371000,rad=Math.PI/180,dLat=(b.lat-a.lat)*rad,dLon=(b.lon-a.lon)*rad;const x=Math.sin(dLat/2)**2+Math.cos(a.lat*rad)*Math.cos(b.lat*rad)*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(x));}
+function setVisibleAudio(el){$('playerA').style.display=el===$('playerA')?'block':'none';$('playerB').style.display=el===$('playerB')?'block':'none';}
+function fade(el,from,to,duration,token){return new Promise(resolve=>{const start=performance.now();el.volume=from;function step(now){if(token!==transitionToken){resolve();return;}const t=Math.min(1,(now-start)/duration);el.volume=from+(to-from)*t;if(t<1)requestAnimationFrame(step);else resolve();}requestAnimationFrame(step);});}
+async function enter(p,source){
+  if(currentId===p.id){log(`${p.label}: 이미 재생 중 — 재시작하지 않음`);return;}
+  const token=++transitionToken;
+  const old=activeAudio;
+  const next=old===$('playerA')?$('playerB'):$('playerA');
+  currentId=p.id;
+  next.pause();next.currentTime=0;next.src=p.file;next.loop=false;next.muted=muted;next.volume=0;
+  $('current').textContent=p.label;
+  $('audioState').textContent=`${p.id}번 음원으로 부드럽게 전환 중…`;
+  places.forEach(x=>$('place-'+x.id).classList.toggle('active',x.id===p.id));
+  try{
+    await next.play();
+    if(old && !old.paused){fade(old,old.volume,0,FADE_MS,token).then(()=>{if(token===transitionToken){old.pause();old.currentTime=0;}});}
+    activeAudio=next;setVisibleAudio(next);
+    await fade(next,0,1,FADE_MS,token);
+    if(token===transitionToken){$('audioState').textContent='다음 장소에 도착할 때까지 계속 재생됩니다.';log(`${p.label} 진입 → 음원 ${p.id} 재생 시작 (${source}), 이전 음원 페이드아웃`);}
+  }catch(e){
+    activeAudio=next;setVisibleAudio(next);
+    $('audioState').textContent='음원 재생 대기 중 — 화면의 재생 버튼을 눌러 주세요.';
+    log(`${p.label} 음원 재생 대기: 화면의 재생 버튼을 눌러 주세요.`);
+  }
+}
+function check(pos){const here={lat:pos.coords.latitude,lon:pos.coords.longitude};let nearest=null,nearestD=Infinity;places.forEach(p=>{const d=dist(here,{lat:p.lat,lon:p.lon});if(d<nearestD){nearestD=d;nearest=p;}});$('gps').innerHTML=`현재 위치: <span class="coords">${here.lat.toFixed(8)}, ${here.lon.toFixed(8)}</span><br>가장 가까운 장소: ${nearest.label} · 약 ${Math.round(nearestD)}m`;if(nearestD<=radius)enter(nearest,'GPS');}
+function start(){if(!navigator.geolocation){$('status').textContent='이 브라우저는 GPS를 지원하지 않습니다.';return;}if(watchId!==null)return;watchId=navigator.geolocation.watchPosition(p=>{ $('status').textContent='GPS 수신 중';check(p);},e=>{ $('status').textContent='GPS 오류';log('GPS 오류: '+e.message);},{enableHighAccuracy:true,maximumAge:3000,timeout:15000});$('start').disabled=true;$('stop').disabled=false;log('GPS 테스트 시작');}
+function stop(){if(watchId!==null)navigator.geolocation.clearWatch(watchId);watchId=null;$('status').textContent='GPS 중지';$('start').disabled=false;$('stop').disabled=true;log('GPS 테스트 중지');}
+$('start').onclick=start;$('stop').onclick=stop;$('mute').onclick=()=>{muted=!muted;$('playerA').muted=muted;$('playerB').muted=muted;$('mute').textContent=muted?'음소거 해제':'음소거';};
+['playerA','playerB'].forEach(id=>$(id).addEventListener('ended',()=>{if($(id)===activeAudio){$('audioState').textContent='음원이 끝났습니다. 반복재생하지 않습니다.';log('현재 음원 재생 완료 — 반복하지 않음');}}));
+activeAudio=$('playerA');setVisibleAudio(activeAudio);render();
+</script>
+</body>
+</html>
