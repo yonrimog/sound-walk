@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>행궁 Sound Walk · GPS 20m Test</title>
+<title>행궁 Sound Walk · GPS 10m Test</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   *{box-sizing:border-box}
@@ -36,7 +36,7 @@
 <body>
 <div id="map"></div>
 <div id="panel">
-  <div id="title">행궁 Sound Walk · GPS 30m 테스트</div>
+  <div id="title">행궁 Sound Walk · GPS 10m 테스트</div>
   <div id="status">GPS 시작 버튼을 눌러 주세요.</div>
   <div id="gps"></div>
   <div id="current"></div>
@@ -49,7 +49,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-const RADIUS = 30; // ★ 모든 지점 반경 20m
+const RADIUS = 10; // ★ 모든 지점 반경 10m
 
 const places = [
   {id:1, name:"수원문화재단", lat:37.28115072746601, lng:127.01518049665039, audio:"../audio/1.mp3"},
@@ -85,21 +85,23 @@ map.fitBounds(allBounds.pad(.12));
 
 let watchId = null;
 let activeAudio = null;
-let insideZones = new Set();
-
-/*
-  이번 페이지를 연 뒤 "처음 만난 zone"을 기록합니다.
-  - 첫 zone이 1번이면 1번은 재생
-  - 첫 zone이 2~9번이면 그 번호를 재생하고, 이후 1번은 무시
-  - 2~9번은 이후 순서와 관계없이 각 zone에 들어갈 때 재생
-  - 페이지를 새로 열면 이 상태가 다시 초기화됩니다.
-*/
-let sessionFirstZone = null;
-let introDecisionMade = false;
+let pendingZone = null;
+let pendingTimer = null;
+let sessionFirstZone = null;   // 이 페이지를 연 뒤 처음 감지된 지점
+let playedZone1 = false;       // 1번은 한 세션에서 처음 한 번만 재생
+const insideZones = new Set(); // 현재 GPS가 반경 안에 있는 지점
 
 const statusEl = document.getElementById("status");
 const gpsEl = document.getElementById("gps");
 const currentEl = document.getElementById("current");
+
+function distanceM(lat1,lon1,lat2,lon2){
+  const R=6371000, rad=Math.PI/180;
+  const dLat=(lat2-lat1)*rad, dLon=(lon2-lon1)*rad;
+  const a=Math.sin(dLat/2)**2 +
+    Math.cos(lat1*rad)*Math.cos(lat2*rad)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
 
 function setStatus(t){ statusEl.textContent=t; }
 
@@ -112,133 +114,87 @@ function stopAudio(){
 }
 
 function fadeTo(zone){
-  const next=new Audio(zone.audio);
+  const src=zone.audio;
+  const next=new Audio(src);
   next.loop=false;
   next.volume=0;
-
   next.play().then(()=>{
     if(activeAudio){
       const old=activeAudio;
       let v=old.volume;
-      const out=setInterval(()=>{
+      const fadeOut=setInterval(()=>{
         v-=.08;
-        if(v<=0){
-          clearInterval(out);
-          old.pause();
-          old.currentTime=0;
-        }else{
-          old.volume=v;
-        }
+        if(v<=0){ clearInterval(fadeOut); old.pause(); old.currentTime=0; }
+        else old.volume=v;
       },80);
     }
-
     activeAudio=next;
     let v=0;
-    const inc=setInterval(()=>{
+    const fadeIn=setInterval(()=>{
       v+=.08;
-      if(v>=1){
-        v=1;
-        clearInterval(inc);
-      }
+      if(v>=1){ v=1; clearInterval(fadeIn); }
       next.volume=v;
     },80);
   }).catch(()=>{
-    setStatus(`${zone.id}. ${zone.name} 도착 — 화면을 한 번 터치한 뒤 다시 시도해 주세요.`);
+    setStatus(`${zone.id}. ${zone.name} 도착 — 음원을 재생하려면 화면을 한 번 터치해 주세요.`);
+  });
+}
+
+function highlightZone(zoneId){
+  zoneLayers.forEach((c,i)=>{
+    const active=(i+1===zoneId);
+    c.setStyle({color:active?"#1aa260":"#d33",weight:active?4:2,fillOpacity:active?.22:.12});
   });
 }
 
 function playZone(zone){
-  /*
-    첫 zone 결정:
-    - 첫 진입이 1번이면 1번 재생
-    - 첫 진입이 2~9번이면 해당 번호 재생
-      → 이후 1번은 이번 페이지가 열려 있는 동안 무시
-  */
-  if(sessionFirstZone === null){
-    sessionFirstZone = zone.id;
-    introDecisionMade = true;
+  // 1번은 이 페이지 세션의 첫 지점이 1번일 때만, 한 번만 재생
+  if(zone.id===1){
+    if(sessionFirstZone!==1 || playedZone1) return false;
+    playedZone1=true;
   }
-
-  // 1번은 "이번 페이지를 연 뒤 첫 zone이 1번일 때만" 재생.
-  if(zone.id === 1 && sessionFirstZone !== 1){
-    return;
-  }
-
-  zoneLayers.forEach((c,i)=>{
-    const active=(i+1===zone.id);
-    c.setStyle({
-      color:active?"#1aa260":"#d33",
-      weight:active?4:2,
-      fillOpacity:active?.22:.12
-    });
-  });
-
-  if(zone.id === 1){
-    currentEl.textContent="1번 인트로 · 이번 페이지에서 최초 1회";
-  }else{
-    currentEl.textContent=`${zone.id}번 음원 재생 · 순서와 관계없이 작동`;
-  }
-
+  highlightZone(zone.id);
   setStatus(`${zone.id}. ${zone.name} 진입 · 반경 ${RADIUS}m`);
+  currentEl.textContent=`현재 감지 지점: ${zone.id}. ${zone.name}`;
   fadeTo(zone);
+  return true;
 }
 
 function checkPosition(lat,lng,accuracy){
-  const ds=places.map(p=>({
-    p,
-    d:distanceM(lat,lng,p.lat,p.lng)
-  }));
+  const distances = places.map(p=>({zone:p, d:distanceM(lat,lng,p.lat,p.lng)}));
+  const inZones = distances.filter(x=>x.d<=RADIUS).sort((a,b)=>a.d-b.d);
+  const nearest = distances.reduce((a,b)=>a.d<b.d?a:b);
 
-  const nearest=ds.reduce((a,b)=>a.d<b.d?a:b);
+  gpsEl.textContent=`GPS 정확도 ±${Math.round(accuracy)}m · 가장 가까운 지점 ${nearest.zone.id}번까지 ${Math.round(nearest.d)}m`;
 
-  gpsEl.textContent=
-    `GPS 정확도 ±${Math.round(accuracy)}m · 가장 가까운 지점 ${nearest.p.id}번까지 ${Math.round(nearest.d)}m`;
-
-  const nowInside=new Set();
-
-  /*
-    정상적인 GPS 이동에서는 여러 zone이 동시에 겹칠 수 있습니다.
-    처음 페이지를 연 직후 여러 zone 안에 있다면 가장 가까운 zone을
-    먼저 선택하도록 하여 1번/다른 zone의 판단이 흔들리지 않게 합니다.
-  */
-  const inside=ds
-    .filter(({d})=>d<=RADIUS)
-    .sort((a,b)=>a.d-b.d);
-
-  if(sessionFirstZone === null && inside.length){
-    playZone(inside[0].p);
-    nowInside.add(inside[0].p.id);
-
-    // 첫 위치에서 동시에 들어온 다른 2~9번 zone도
-    // 이후 GPS 업데이트에서 다시 진입할 수 있도록 상태를 잡습니다.
-    inside.slice(1).forEach(({p})=>nowInside.add(p.id));
-  }else{
-    inside.forEach(({p})=>{
-      nowInside.add(p.id);
-
-      if(!insideZones.has(p.id)){
-        playZone(p);
-      }
-    });
+  // 페이지를 연 뒤 처음 들어온 지점이 이 세션의 첫 지점이 됩니다.
+  // 겹치는 원이 여러 개라면 가장 가까운 지점을 첫 지점으로 선택합니다.
+  if(sessionFirstZone===null && inZones.length>0){
+    sessionFirstZone=inZones[0].zone.id;
+    const first=inZones[0].zone;
+    playZone(first);
+    // 첫 GPS 위치에서 이미 들어와 있던 다른 zone은 즉시 중복 재생하지 않습니다.
+    inZones.forEach(x=>insideZones.add(x.zone.id));
+    return;
   }
 
-  insideZones=nowInside;
-}
+  const currentIds=new Set(inZones.map(x=>x.zone.id));
+  const newlyEntered=inZones.filter(x=>!insideZones.has(x.zone.id));
 
-function resetSequence(){
-  stopAudio();
+  // 2~9번은 순서와 관계없이 새로 진입할 때마다 재생합니다.
+  // 1번은 첫 지점이 1번이었던 세션에서만 첫 진입 시 재생합니다.
+  for(const x of newlyEntered){
+    playZone(x.zone);
+  }
+
+  // 현재 반경 안/밖 상태를 갱신합니다. 따라서 2~9번은 나갔다가 다시 들어오면 다시 재생됩니다.
   insideZones.clear();
-  sessionFirstZone=null;
-  introDecisionMade=false;
+  currentIds.forEach(id=>insideZones.add(id));
 
-  zoneLayers.forEach(c=>c.setStyle({
-    color:"#d33",
-    weight:2,
-    fillOpacity:.12
-  }));
-
-  currentEl.textContent="이번 페이지에서 처음 만나는 지점에 따라 시작합니다.";
-  setStatus("재생 상태를 초기화했습니다. 1번도 다시 재생할 수 있습니다.");
+  if(inZones.length===0 && pendingZone!==null){
+    if(pendingTimer){clearTimeout(pendingTimer);pendingTimer=null;}
+    pendingZone=null;
+  }
 }
 
 function startGPS(){
@@ -274,20 +230,22 @@ function stopGPS(){
   }
 }
 
-function resetSequence(){
+function resetSession(){
   stopAudio();
-  currentZone=0; pendingZone=null;
+  sessionFirstZone=null;
+  playedZone1=false;
+  insideZones.clear();
+  pendingZone=null;
   if(pendingTimer){clearTimeout(pendingTimer);pendingTimer=null;}
   zoneLayers.forEach(c=>c.setStyle({color:"#d33",weight:2,fillOpacity:.12}));
-  currentEl.textContent="현재 재생 순서: 0/9";
-  setStatus("순서를 초기화했습니다. 1번 지점부터 시작합니다.");
+  currentEl.textContent="현재 감지 지점: 없음";
+  setStatus("새 세션을 시작합니다. 처음 들어가는 지점부터 재생합니다.");
 }
 
 document.getElementById("start").onclick=startGPS;
 document.getElementById("stop").onclick=stopGPS;
-document.getElementById("reset").onclick=resetSequence;
+document.getElementById("reset").onclick=resetSession;
 
-// 모바일 브라우저의 오디오 정책을 위해 화면 터치 시 준비
 document.addEventListener("click",()=>{}, {once:true});
 </script>
 </body>
