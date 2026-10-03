@@ -231,6 +231,8 @@ function stopGPS(){
 }
 
 function resetSession(){
+  // "새로 시작"은 세션 상태를 완전히 초기화하고 GPS도 다시 시작합니다.
+  // GPS를 중지한 뒤 눌러도 다시 watchPosition이 걸리도록 합니다.
   stopAudio();
   sessionFirstZone=null;
   playedZone1=false;
@@ -239,7 +241,12 @@ function resetSession(){
   if(pendingTimer){clearTimeout(pendingTimer);pendingTimer=null;}
   zoneLayers.forEach(c=>c.setStyle({color:"#d33",weight:2,fillOpacity:.12}));
   currentEl.textContent="현재 감지 지점: 없음";
-  setStatus("새 세션을 시작합니다. 처음 들어가는 지점부터 재생합니다.");
+  if(watchId!==null){
+    navigator.geolocation.clearWatch(watchId);
+    watchId=null;
+  }
+  setStatus("새로 시작합니다. GPS 위치를 확인하는 중…");
+  startGPS();
 }
 
 document.getElementById("start").onclick=startGPS;
