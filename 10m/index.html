@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>행궁 Sound Walk · GPS 20m Test</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR",sans-serif;background:#111;color:#fff}
+  #map{height:100%;width:100%}
+  #panel{
+    position:fixed;z-index:1000;left:12px;right:12px;top:12px;
+    background:rgba(20,20,20,.88);backdrop-filter:blur(10px);
+    border-radius:14px;padding:13px 15px;box-shadow:0 4px 24px rgba(0,0,0,.3);
+    font-size:13px;line-height:1.5
+  }
+  #title{font-size:16px;font-weight:700;margin-bottom:5px}
+  #status{color:#ddd}
+  #gps{color:#aaa;margin-top:3px}
+  #current{color:#9fe3b0;margin-top:3px}
+  #buttons{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
+  button{
+    border:0;border-radius:9px;padding:8px 11px;background:#fff;color:#111;
+    font-weight:600;font-size:12px;cursor:pointer
+  }
+  button.secondary{background:#333;color:#fff}
+  .leaflet-popup-content{font-size:13px}
+  .zone-label{
+    background:rgba(0,0,0,.78);color:#fff;border:0;border-radius:5px;
+    padding:2px 5px;font-weight:700;box-shadow:none
+  }
+  .active-zone{font-weight:800}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="panel">
+  <div id="title">행궁 Sound Walk · GPS 10m 테스트</div>
+  <div id="status">GPS 시작 버튼을 눌러 주세요.</div>
+  <div id="gps"></div>
+  <div id="current"></div>
+  <div id="buttons">
+    <button id="start">GPS 시작</button>
+    <button id="stop" class="secondary">GPS 중지</button>
+    <button id="reset" class="secondary">순서 초기화</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const RADIUS = 10; // ★ 모든 지점 반경 20m
+
+const places = [
+  {id:1, name:"수원문화재단", lat:37.28115072746601, lng:127.01518049665039, audio:"../audio/1.mp3"},
+  {id:2, name:"정조테마공연장", lat:37.28116408763919, lng:127.01634757949711, audio:"../audio/2.mp3"},
+  {id:3, name:"수원종로교회", lat:37.28202453390769, lng:127.01668041542524, audio:"../audio/3.mp3"},
+  {id:4, name:"매향통닭", lat:37.28173151865643, lng:127.0178953636229, audio:"../audio/4.mp3"},
+  {id:5, name:"남수문", lat:37.278742230409456, lng:127.01847535835135, audio:"../audio/5.mp3"},
+  {id:6, name:"팔달문", lat:37.27755979183475, lng:127.01730804484421, audio:"../audio/6.mp3"},
+  {id:7, name:"행궁로가는길", lat:37.27826496211104, lng:127.01656400981683, audio:"../audio/7.mp3"},
+  {id:8, name:"남창초등학교앞", lat:37.27849712862135, lng:127.01546467613876, audio:"../audio/8.mp3"},
+  {id:9, name:"행궁광장", lat:37.28186699066884, lng:127.01566551890309, audio:"../audio/9.mp3"}
+];
+
+const map = L.map("map").setView([37.2802,127.0167],16);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+  maxZoom:20, attribution:"© OpenStreetMap contributors"
+}).addTo(map);
+
+const zoneLayers = [];
+places.forEach(p=>{
+  const circle = L.circle([p.lat,p.lng],{
+    radius:RADIUS, color:"#d33", weight:2, fillOpacity:.12
+  }).addTo(map);
+  circle.bindPopup(`<b>${p.id}. ${p.name}</b><br>반경 ${RADIUS}m`);
+  circle.bindTooltip(`${p.id}. ${p.name}`,{
+    permanent:true,direction:"top",className:"zone-label",offset:[0,-3]
+  });
+  zoneLayers.push(circle);
+});
+
+const allBounds = L.latLngBounds(places.map(p=>[p.lat,p.lng]));
+map.fitBounds(allBounds.pad(.12));
+
+let watchId = null;
+let currentZone = 0;       // 마지막으로 재생한 순서
+let activeAudio = null;
+let pendingZone = null;
+let pendingTimer = null;
+
+const statusEl = document.getElementById("status");
+const gpsEl = document.getElementById("gps");
+const currentEl = document.getElementById("current");
+
+function distanceM(lat1,lon1,lat2,lon2){
+  const R=6371000, rad=Math.PI/180;
+  const dLat=(lat2-lat1)*rad, dLon=(lon2-lon1)*rad;
+  const a=Math.sin(dLat/2)**2 +
+    Math.cos(lat1*rad)*Math.cos(lat2*rad)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+
+function setStatus(t){ statusEl.textContent=t; }
+
+function stopAudio(){
+  if(activeAudio){
+    activeAudio.pause();
+    activeAudio.currentTime=0;
+    activeAudio=null;
+  }
+}
+
+function fadeTo(zone){
+  const src=zone.audio;
+  const next=new Audio(src);
+  next.loop=false;
+  next.volume=0;
+  next.play().then(()=>{
+    if(activeAudio){
+      const old=activeAudio;
+      let v=old.volume;
+      const fadeOut=setInterval(()=>{
+        v-=.08;
+        if(v<=0){ clearInterval(fadeOut); old.pause(); old.currentTime=0; }
+        else old.volume=v;
+      },80);
+    }
+    activeAudio=next;
+    let v=0;
+    const fadeIn=setInterval(()=>{
+      v+=.08;
+      if(v>=1){ v=1; clearInterval(fadeIn); }
+      next.volume=v;
+    },80);
+  }).catch(()=>{
+    setStatus(`${zone.id}. ${zone.name} 도착 — 음원을 재생하려면 화면을 한 번 터치해 주세요.`);
+  });
+}
+
+function enterZone(zone){
+  if(zone.id <= currentZone) return;
+  // 순차 재생: 다음 번호 지점만 활성화
+  if(zone.id !== currentZone + 1) return;
+  currentZone=zone.id;
+  pendingZone=null;
+  if(pendingTimer){clearTimeout(pendingTimer);pendingTimer=null;}
+  zoneLayers.forEach((c,i)=>{
+    const active=(i+1===zone.id);
+    c.setStyle({color:active?"#1aa260":"#d33",weight:active?4:2,fillOpacity:active?.22:.12});
+  });
+  setStatus(`${zone.id}. ${zone.name} 진입 · 반경 ${RADIUS}m`);
+  currentEl.textContent=`현재 재생 순서: ${zone.id}/9`;
+  fadeTo(zone);
+}
+
+function checkPosition(lat,lng,accuracy){
+  let nearest=null, nearestD=Infinity;
+  places.forEach(p=>{
+    const d=distanceM(lat,lng,p.lat,p.lng);
+    if(d<nearestD){nearestD=d;nearest=p;}
+  });
+
+  gpsEl.textContent=`GPS 정확도 ±${Math.round(accuracy)}m · 가장 가까운 지점 ${nearest.id}번까지 ${Math.round(nearestD)}m`;
+
+  // 다음 지점만 감지
+  const next=places[currentZone];
+  if(!next) return;
+  const d=distanceM(lat,lng,next.lat,next.lng);
+
+  if(d<=RADIUS){
+    // GPS 튐으로 바로 경계를 벗어나는 경우를 줄이기 위해 짧은 확인
+    if(pendingZone!==next.id){
+      pendingZone=next.id;
+      setStatus(`${next.id}. ${next.name} 진입 감지 (${Math.round(d)}m)`);
+      pendingTimer=setTimeout(()=>{
+        if(pendingZone===next.id) enterZone(next);
+      },1200);
+    }
+  }else{
+    if(pendingZone===next.id && pendingTimer){
+      clearTimeout(pendingTimer); pendingTimer=null; pendingZone=null;
+    }
+    setStatus(`다음 지점: ${next.id}. ${next.name} · ${Math.round(d)}m`);
+  }
+}
+
+function startGPS(){
+  if(!navigator.geolocation){
+    setStatus("이 기기에서 GPS를 사용할 수 없습니다.");
+    return;
+  }
+  if(watchId!==null) return;
+  setStatus("GPS 위치를 확인하는 중…");
+  watchId=navigator.geolocation.watchPosition(
+    pos=>{
+      const {latitude,longitude,accuracy}=pos.coords;
+      if(window.userMarker) window.userMarker.setLatLng([latitude,longitude]);
+      else{
+        window.userMarker=L.circleMarker([latitude,longitude],{
+          radius:7,color:"#1677ff",fillColor:"#1677ff",fillOpacity:.95,weight:3
+        }).addTo(map).bindPopup("현재 위치");
+      }
+      checkPosition(latitude,longitude,accuracy);
+    },
+    err=>{
+      setStatus(`GPS 오류: ${err.message}`);
+    },
+    {enableHighAccuracy:true,maximumAge:2000,timeout:15000}
+  );
+}
+
+function stopGPS(){
+  if(watchId!==null){
+    navigator.geolocation.clearWatch(watchId);
+    watchId=null;
+    setStatus("GPS를 중지했습니다.");
+  }
+}
+
+function resetSequence(){
+  stopAudio();
+  currentZone=0; pendingZone=null;
+  if(pendingTimer){clearTimeout(pendingTimer);pendingTimer=null;}
+  zoneLayers.forEach(c=>c.setStyle({color:"#d33",weight:2,fillOpacity:.12}));
+  currentEl.textContent="현재 재생 순서: 0/9";
+  setStatus("순서를 초기화했습니다. 1번 지점부터 시작합니다.");
+}
+
+document.getElementById("start").onclick=startGPS;
+document.getElementById("stop").onclick=stopGPS;
+document.getElementById("reset").onclick=resetSequence;
+
+// 모바일 브라우저의 오디오 정책을 위해 화면 터치 시 준비
+document.addEventListener("click",()=>{}, {once:true});
+</script>
+</body>
+</html>
