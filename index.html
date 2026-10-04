@@ -2,22 +2,262 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>행궁 Sound Walk GPS Test</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>행궁 Sound Walk</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-body{font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR",sans-serif;margin:0;padding:32px;background:#f5f5f5;color:#222}
-main{max-width:560px;margin:auto}h1{font-size:24px}
-a{display:block;background:white;border-radius:12px;padding:18px;margin:12px 0;text-decoration:none;color:#222;box-shadow:0 2px 8px #0001}
-small{color:#777}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR",sans-serif;background:#111;color:#fff}
+  #map{height:100%;width:100%}
+  #panel{
+    position:fixed;z-index:1000;left:12px;right:12px;top:12px;
+    background:rgba(20,20,20,.88);backdrop-filter:blur(10px);
+    border-radius:14px;padding:13px 15px;box-shadow:0 4px 24px rgba(0,0,0,.3);
+    font-size:13px;line-height:1.5
+  }
+  #title{font-size:16px;font-weight:700;margin-bottom:5px}
+  #status{color:#ddd}
+  #gps{color:#aaa;margin-top:3px}
+  #current{color:#9fe3b0;margin-top:3px}
+  #buttons{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
+  button{
+    border:0;border-radius:9px;padding:8px 11px;background:#fff;color:#111;
+    font-weight:600;font-size:12px;cursor:pointer
+  }
+  button.secondary{background:#333;color:#fff}
+  .leaflet-popup-content{font-size:13px}
+  .zone-label{
+    background:rgba(20,20,20,.82);color:#fff;border:0;border-radius:6px;
+    padding:3px 7px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.18);
+    white-space:nowrap
+  }
+  .zone-label.active-zone{background:rgba(26,162,96,.92);font-weight:800}
+  .leaflet-marker-icon.zone-marker{margin:0!important}
 </style>
 </head>
 <body>
-<main>
-<h1>행궁 Sound Walk · GPS 테스트</h1>
-<p>첫 진입 지점에서 시작 · 2~9번은 순서 무관</p>
-<a href="./10m/">10m 버전<br><small>GPS zone 반경 10m</small></a>
-<a href="./20m/">20m 버전<br><small>GPS zone 반경 20m</small></a>
-<a href="./30m/">30m 버전<br><small>GPS zone 반경 30m</small></a>
-</main>
+<div id="map"></div>
+<div id="panel">
+  <div id="title">행궁 Sound Walk</div>
+  <div id="status">GPS 시작 버튼을 눌러 주세요.</div>
+  <div id="gps"></div>
+  <div id="current"></div>
+  <div id="buttons">
+    <button id="start">GPS 시작</button>
+    <button id="stop" class="secondary">GPS 중지</button>
+    <button id="reset" class="secondary">새로 시작</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+
+const places = [
+  {id:1, name:"수원문화재단", label:"수원문화재단 · 출발지점", lat:37.28115072746601, lng:127.01518049665039, radius:10, audio:"audio/1.mp3"},
+  {id:2, name:"정조테마공연장", label:"정조테마공연장", lat:37.28116408763919, lng:127.01634757949711, radius:10, audio:"audio/2.mp3"},
+  {id:3, name:"수원종로교회", label:"수원종로교회", lat:37.28202453390769, lng:127.01668041542524, radius:10, audio:"audio/3.mp3"},
+  {id:4, name:"매향통닭", label:"매향통닭", lat:37.28173151865643, lng:127.0178953636229, radius:20, audio:"audio/4.mp3"},
+  {id:5, name:"남수문", label:"남수문", lat:37.278742230409456, lng:127.01847535835135, radius:10, audio:"audio/5.mp3"},
+  {id:6, name:"팔달문", label:"팔달문", lat:37.27755979183475, lng:127.01730804484421, radius:20, audio:"audio/6.mp3"},
+  {id:7, name:"행궁로가는길", label:"행궁로가는길", lat:37.27826496211104, lng:127.01656400981683, radius:20, audio:"audio/7.mp3"},
+  {id:8, name:"남창초등학교앞", label:"남창초등학교앞", lat:37.27849712862135, lng:127.01546467613876, radius:10, audio:"audio/8.mp3"},
+  {id:9, name:"행궁광장", label:"행궁광장 · 도착지점", lat:37.28186699066884, lng:127.01566551890309, radius:10, audio:"audio/9.mp3"}
+];
+
+const map = L.map("map").setView([37.2802,127.0167],16);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+  maxZoom:20, attribution:"© OpenStreetMap contributors"
+}).addTo(map);
+
+const zoneLayers = [];
+places.forEach(p=>{
+  // 지도에는 반경 원을 표시하지 않고 지점 이름만 표시합니다.
+  const icon = L.divIcon({
+    className:"zone-marker",
+    html:`<div class="zone-label" data-zone-id="${p.id}">${p.id}. ${p.label}</div>`,
+    iconSize:null,
+    iconAnchor:[0,0]
+  });
+  const marker = L.marker([p.lat,p.lng],{icon,interactive:false}).addTo(map);
+  zoneLayers.push(marker);
+});
+
+const allBounds = L.latLngBounds(places.map(p=>[p.lat,p.lng]));
+map.fitBounds(allBounds.pad(.12));
+
+let watchId = null;
+let activeAudio = null;
+let pendingZone = null;
+let pendingTimer = null;
+let sessionFirstZone = null;   // 이 페이지를 연 뒤 처음 감지된 지점
+let playedZone1 = false;       // 1번은 한 세션에서 처음 한 번만 재생
+const insideZones = new Set(); // 현재 GPS가 반경 안에 있는 지점
+
+const statusEl = document.getElementById("status");
+const gpsEl = document.getElementById("gps");
+const currentEl = document.getElementById("current");
+
+function distanceM(lat1,lon1,lat2,lon2){
+  const R=6371000, rad=Math.PI/180;
+  const dLat=(lat2-lat1)*rad, dLon=(lon2-lon1)*rad;
+  const a=Math.sin(dLat/2)**2 +
+    Math.cos(lat1*rad)*Math.cos(lat2*rad)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(a));
+}
+
+function setStatus(t){ statusEl.textContent=t; }
+
+function stopAudio(){
+  if(activeAudio){
+    activeAudio.pause();
+    activeAudio.currentTime=0;
+    activeAudio=null;
+  }
+}
+
+function fadeTo(zone){
+  const src=zone.audio;
+  const next=new Audio(src);
+  next.loop=false;
+  next.volume=0;
+  next.play().then(()=>{
+    if(activeAudio){
+      const old=activeAudio;
+      let v=old.volume;
+      const fadeOut=setInterval(()=>{
+        v-=.08;
+        if(v<=0){ clearInterval(fadeOut); old.pause(); old.currentTime=0; }
+        else old.volume=v;
+      },80);
+    }
+    activeAudio=next;
+    let v=0;
+    const fadeIn=setInterval(()=>{
+      v+=.08;
+      if(v>=1){ v=1; clearInterval(fadeIn); }
+      next.volume=v;
+    },80);
+  }).catch(()=>{
+    setStatus(`${zone.id}. ${zone.name} 도착 — 음원을 재생하려면 화면을 한 번 터치해 주세요.`);
+  });
+}
+
+function highlightZone(zoneId){
+  zoneLayers.forEach((marker,i)=>{
+    const el=marker.getElement()?.querySelector(".zone-label");
+    if(el) el.classList.toggle("active-zone", i+1===zoneId);
+  });
+}
+
+function playZone(zone){
+  // 1번은 이 페이지 세션의 첫 지점이 1번일 때만, 한 번만 재생
+  if(zone.id===1){
+    if(sessionFirstZone!==1 || playedZone1) return false;
+    playedZone1=true;
+  }
+  highlightZone(zone.id);
+  setStatus(`${zone.id}. ${zone.name} 진입`);
+  currentEl.textContent=`현재 감지 지점: ${zone.id}. ${zone.name}`;
+  fadeTo(zone);
+  return true;
+}
+
+function checkPosition(lat,lng,accuracy){
+  const distances = places.map(p=>({zone:p, d:distanceM(lat,lng,p.lat,p.lng)}));
+  const inZones = distances.filter(x=>x.d<=x.zone.radius).sort((a,b)=>a.d-b.d);
+  const nearest = distances.reduce((a,b)=>a.d<b.d?a:b);
+
+  gpsEl.textContent=`GPS 정확도 ±${Math.round(accuracy)}m · 가장 가까운 지점 ${nearest.zone.id}번까지 ${Math.round(nearest.d)}m`;
+
+  // 페이지를 연 뒤 처음 들어온 지점이 이 세션의 첫 지점이 됩니다.
+  // 겹치는 원이 여러 개라면 가장 가까운 지점을 첫 지점으로 선택합니다.
+  if(sessionFirstZone===null && inZones.length>0){
+    sessionFirstZone=inZones[0].zone.id;
+    const first=inZones[0].zone;
+    playZone(first);
+    // 첫 GPS 위치에서 이미 들어와 있던 다른 zone은 즉시 중복 재생하지 않습니다.
+    inZones.forEach(x=>insideZones.add(x.zone.id));
+    return;
+  }
+
+    const newlyEntered=inZones.filter(x=>!insideZones.has(x.zone.id));
+
+  // 2~9번은 순서와 관계없이 새로 진입할 때마다 재생합니다.
+  // 1번은 첫 지점이 1번이었던 세션에서만 첫 진입 시 재생합니다.
+  for(const x of newlyEntered){
+    playZone(x.zone);
+  }
+
+  // 현재 반경 안/밖 상태를 갱신합니다. 따라서 2~9번은 나갔다가 다시 들어오면 다시 재생됩니다.
+  insideZones.clear();
+  inZones.forEach(x=>insideZones.add(x.zone.id));
+
+  if(inZones.length===0 && pendingZone!==null){
+    if(pendingTimer){clearTimeout(pendingTimer);pendingTimer=null;}
+    pendingZone=null;
+  }
+}
+
+function startGPS(){
+  if(!navigator.geolocation){
+    setStatus("이 기기에서 GPS를 사용할 수 없습니다.");
+    return;
+  }
+  if(watchId!==null) return;
+  setStatus("GPS 위치를 확인하는 중…");
+  watchId=navigator.geolocation.watchPosition(
+    pos=>{
+      const {latitude,longitude,accuracy}=pos.coords;
+      if(window.userMarker) window.userMarker.setLatLng([latitude,longitude]);
+      else{
+        window.userMarker=L.circleMarker([latitude,longitude],{
+          radius:7,color:"#1677ff",fillColor:"#1677ff",fillOpacity:.95,weight:3
+        }).addTo(map).bindPopup("현재 위치");
+      }
+      checkPosition(latitude,longitude,accuracy);
+    },
+    err=>{
+      setStatus(`GPS 오류: ${err.message}`);
+    },
+    {enableHighAccuracy:true,maximumAge:2000,timeout:15000}
+  );
+}
+
+function stopGPS(){
+  if(watchId!==null){
+    navigator.geolocation.clearWatch(watchId);
+    watchId=null;
+    setStatus("GPS를 중지했습니다.");
+  }
+}
+
+function resetSession(){
+  // "새로 시작"은 세션 상태를 완전히 초기화하고 GPS도 다시 시작합니다.
+  // GPS를 중지한 뒤 눌러도 다시 watchPosition이 걸리도록 합니다.
+  stopAudio();
+  sessionFirstZone=null;
+  playedZone1=false;
+  insideZones.clear();
+  pendingZone=null;
+  if(pendingTimer){clearTimeout(pendingTimer);pendingTimer=null;}
+  zoneLayers.forEach(marker=>{
+    const el=marker.getElement()?.querySelector(".zone-label");
+    if(el) el.classList.remove("active-zone");
+  });
+  currentEl.textContent="현재 감지 지점: 없음";
+  if(watchId!==null){
+    navigator.geolocation.clearWatch(watchId);
+    watchId=null;
+  }
+  setStatus("새로 시작합니다. GPS 위치를 확인하는 중…");
+  startGPS();
+}
+
+document.getElementById("start").onclick=startGPS;
+document.getElementById("stop").onclick=stopGPS;
+document.getElementById("reset").onclick=resetSession;
+
+document.addEventListener("click",()=>{}, {once:true});
+</script>
 </body>
 </html>
