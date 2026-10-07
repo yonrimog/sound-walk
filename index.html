@@ -1,0 +1,125 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>행궁 Sound Walk</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><style>*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans KR",sans-serif;background:#111;color:#fff}#map{height:100%;width:100%}#panel{position:fixed;z-index:1000;left:12px;right:12px;top:12px;background:rgba(20,20,20,.88);backdrop-filter:blur(10px);border-radius:14px;padding:13px 15px;box-shadow:0 4px 24px rgba(0,0,0,.3);font-size:13px;line-height:1.5}#title{font-size:16px;font-weight:700;margin-bottom:5px}#status{color:#ddd}#gps{color:#aaa;margin-top:3px}#current{color:#9fe3b0;margin-top:3px}#buttons{display:flex;gap:7px;margin-top:10px}button{border:0;border-radius:9px;padding:8px 11px;background:#fff;color:#111;font-weight:600;font-size:12px;cursor:pointer}.zone-label{background:rgba(20,20,20,.82);color:#fff;border:0;border-radius:6px;padding:3px 7px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.18);white-space:nowrap}.zone-label.active-zone{background:rgba(26,162,96,.92);font-weight:800}.leaflet-marker-icon.zone-marker{margin:0!important}</style></head><body><div id="map"></div><div id="panel"><div id="title">행궁 Sound Walk</div><div id="status">GPS 시작 버튼을 눌러 주세요.</div><div id="gps"></div><div id="current"></div><div id="buttons"><button id="start">GPS 시작</button></div></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script>
+const places=[
+{id:1,name:"수원문화재단",label:"수원문화재단",lat:37.28115072746601,lng:127.01518049665039,radius:10,audio:"audio/1.mp3"},
+{id:2,name:"정조테마공연장",label:"정조테마공연장",lat:37.28116408763919,lng:127.01634757949711,radius:10,audio:"audio/2.mp3"},
+{id:3,name:"수원종로교회",label:"수원종로교회",lat:37.28202453390769,lng:127.01668041542524,radius:25,audio:"audio/3.mp3"},
+{id:4,name:"낙원메밀",label:"낙원메밀",lat:37.28239380593328,lng:127.01774047102909,radius:10,audio:"audio/4.mp3"},
+{id:5,name:"매향통닭",label:"매향통닭",lat:37.28173151865643,lng:127.0178953636229,radius:20,audio:"audio/5.mp3"},
+{id:6,name:"남수문",label:"남수문",lat:37.278742230409456,lng:127.01847535835135,radius:10,audio:"audio/6.mp3"},
+{id:7,name:"지동교 방향",label:"지동교 방향",lat:37.27834345125277,lng:127.01891219488122,radius:10,audio:"audio/7.mp3"},
+{id:8,name:"팔달문",label:"팔달문",lat:37.27755979183475,lng:127.01730804484421,radius:20,audio:"audio/8.mp3"},
+{id:9,name:"행궁로 가는길",label:"행궁로 가는길",lat:37.278267211553306,lng:127.01658656171911,radius:20,audio:"audio/9.mp3"},
+{id:10,name:"남창초등학교앞",label:"남창초등학교앞",lat:37.27849712862135,lng:127.01546467613876,radius:10,audio:"audio/10.mp3"}
+];
+const map=L.map("map").setView([37.2802,127.0167],16);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:20,attribution:"© OpenStreetMap contributors"}).addTo(map);
+
+/* 사진의 분홍색 경로를 지도 위에 미리 표시합니다. */
+const routePoints=[
+[37.28112539215051,127.01825892429994],
+[37.28085300609532,127.01827364844846],
+[37.28050898024998,127.01828756249697],
+[37.28007883180385,127.01831830695396],
+[37.27964868335771,127.01834905141095],
+[37.27921927982131,127.0183782703108],
+[37.27879110813239,127.01841047977078],
+[37.27844422576439,127.01848116938184],
+[37.27803518523791,127.0186491938413],
+[37.27799127537634,127.01881037006364],
+[37.27776432074902,127.01889805109938],
+[37.27747828171157,127.0188032974329],
+[37.27747812599782,127.0184109428077],
+[37.27747686519496,127.01787451014602],
+[37.27747821935055,127.01733767148535],
+[37.27748220791279,127.01716050088186],
+[37.27751359565134,127.01701892680038],
+[37.27798147699653,127.0169925840843],
+[37.27826751461107,127.0169560968701],
+[37.27856902618832,127.01692961332183],
+[37.27896000407242,127.01515429781925],
+[37.27924733749605,127.01506852557696],
+[37.27953451606709,127.01500055586311],
+[37.279964664513216,127.01496981140613],
+[37.28025184308425,127.01490184169228]
+];
+L.polyline(routePoints,{color:"#e33b8f",weight:5,opacity:.9,lineCap:"round",lineJoin:"round"}).addTo(map);
+
+const zoneLayers=[];
+places.forEach(p=>{
+  L.circle([p.lat,p.lng],{radius:p.radius,color:"#1976d2",weight:2,fillColor:"#1976d2",fillOpacity:.10}).addTo(map);
+  const icon=L.divIcon({className:"zone-marker",html:`<div class="zone-label">${p.id}. ${p.label}</div>`,iconSize:null,iconAnchor:[0,0]});
+  zoneLayers.push(L.marker([p.lat,p.lng],{icon,interactive:false}).addTo(map));
+});
+map.fitBounds(L.latLngBounds(places.map(p=>[p.lat,p.lng])).pad(.12));
+
+let watchId=null,activeAudio=null,sessionFirstZone=null,playedZone1=false;
+const insideZones=new Set();
+const statusEl=document.getElementById("status"),gpsEl=document.getElementById("gps"),currentEl=document.getElementById("current");
+
+/* iPhone Safari: keep one Audio object and unlock it from the GPS button.
+   All other GPS/zone behavior is unchanged. */
+const audioPlayer=new Audio();
+audioPlayer.preload="auto";
+audioPlayer.playsInline=true;
+let audioUnlocked=false;
+function unlockAudio(){
+  if(audioUnlocked)return;
+  audioPlayer.muted=true;
+  audioPlayer.src="data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAA";
+  const p=audioPlayer.play();
+  if(p&&p.then){
+    p.then(()=>{audioPlayer.pause();audioPlayer.currentTime=0;audioPlayer.removeAttribute("src");audioPlayer.load();audioPlayer.muted=false;audioUnlocked=true;})
+     .catch(()=>{audioPlayer.muted=false;});
+  }
+}
+function distanceM(a,b,c,d){const R=6371000,r=Math.PI/180,x=(c-a)*r,y=(d-b)*r,q=Math.sin(x/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(y/2)**2;return 2*R*Math.asin(Math.sqrt(q));}
+function playZone(z){
+  if(z.id===1){if(sessionFirstZone!==1||playedZone1)return false;playedZone1=true;}
+  zoneLayers.forEach((m,i)=>{const e=m.getElement()?.querySelector(".zone-label");if(e)e.classList.toggle("active-zone",i+1===z.id);});
+  statusEl.textContent=`${z.id}. ${z.name} 진입`;currentEl.textContent=`현재 감지 지점: ${z.id}. ${z.name}`;
+  audioPlayer.pause();
+  audioPlayer.currentTime=0;
+  audioPlayer.muted=false;
+  audioPlayer.src=z.audio;
+  audioPlayer.load();
+  audioPlayer.play().then(()=>{activeAudio=audioPlayer;}).catch(()=>{statusEl.textContent=`${z.id}. ${z.name} 도착 — 음원을 재생할 수 없습니다.`;});
+  return true;
+}
+function checkPosition(lat,lng,accuracy){
+  const ds=places.map(p=>({zone:p,d:distanceM(lat,lng,p.lat,p.lng)}));
+  const inside=ds.filter(x=>x.d<=x.zone.radius).sort((a,b)=>a.d-b.d);
+  const near=ds.reduce((a,b)=>a.d<b.d?a:b);
+  gpsEl.textContent=`GPS 정확도 ±${Math.round(accuracy)}m · 가장 가까운 지점 ${near.zone.id}번까지 ${Math.round(near.d)}m`;
+
+  /* GPS가 살짝 흔들려도 재생이 다시 시작되지 않도록 출구에 여유를 둡니다.
+     반경 밖으로 조금 벗어난 것만으로는 zone을 해제하지 않습니다. */
+  const exitBuffer=10;
+  insideZones.forEach(id=>{
+    const item=ds.find(x=>x.zone.id===id);
+    if(item && item.d>item.zone.radius+exitBuffer) insideZones.delete(id);
+  });
+
+  if(sessionFirstZone===null&&inside.length){
+    sessionFirstZone=inside[0].zone.id;
+    playZone(inside[0].zone);
+    inside.forEach(x=>insideZones.add(x.zone.id));
+    return;
+  }
+
+  inside.filter(x=>!insideZones.has(x.zone.id)).forEach(x=>{
+    if(playZone(x)) insideZones.add(x.zone.id);
+  });
+}
+function startGPS(){
+  if(!navigator.geolocation){statusEl.textContent="이 기기에서 GPS를 사용할 수 없습니다.";return}
+  if(watchId!==null)return;
+  unlockAudio();
+  statusEl.textContent="GPS 위치를 확인하는 중…";
+  watchId=navigator.geolocation.watchPosition(
+    p=>{const{latitude,longitude,accuracy}=p.coords;if(window.userMarker)window.userMarker.setLatLng([latitude,longitude]);else window.userMarker=L.circleMarker([latitude,longitude],{radius:7,color:"#1677ff",fillColor:"#1677ff",fillOpacity:.95,weight:3}).addTo(map).bindPopup("현재 위치");checkPosition(latitude,longitude,accuracy)},
+    e=>{statusEl.textContent=`GPS 오류: ${e.message}`},
+    {enableHighAccuracy:true,maximumAge:2000,timeout:15000}
+  );
+}
+document.getElementById("start").onclick=startGPS;
+</script></body></html>
